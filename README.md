@@ -6,9 +6,9 @@ RegimeGuard goes beyond a simple entry signal. It analyzes the current market en
 
 ## What it does
 
-1. **Market regime detection** — fits a 3-state model to SPY returns, realized volatility, and quarterly momentum, labeling the current environment **RISK-ON**, **CHOPPY**, or **RISK-OFF**.
-2. **Fractional Kelly sizing** — estimates recent win rate and payoff, applies half-Kelly sizing, scales exposure by the detected regime, and applies volatility targeting.
-3. **Monte Carlo CVaR** — simulates correlated portfolio returns and reports 95% VaR, 95% CVaR / expected shortfall, worst simulated loss, and median return.
+1. **Market regime detection** fits a 3-state model to SPY returns, realized volatility, and quarterly momentum, labeling the current environment **RISK-ON**, **CHOPPY**, or **RISK-OFF**.
+2. **Fractional Kelly sizing** estimates recent win rate and payoff, applies half-Kelly sizing, scales exposure by the detected regime, and applies volatility targeting.
+3. **Monte Carlo CVaR** simulates correlated portfolio returns and reports 95% VaR, 95% CVaR / expected shortfall, worst simulated loss, and median return.
 4. **Correlation clustering** — flags holdings with absolute return correlation ≥ 0.75 and groups them as potentially redundant exposures.
 
 The implementation uses `hmmlearn` when available for the regime model and falls back to a Gaussian Mixture Model when it is not.
@@ -68,8 +68,6 @@ Ticker history → Kelly + volatility targeting → position sizes
 
 ## Important assumptions
 
-This is an educational research tool, not an execution system or investment-advice engine. Results are sensitive to the historical sample and modeling assumptions. The current Monte Carlo implementation uses a multivariate-normal return model with a fixed random seed; it does not model jumps, changing correlations, transaction costs, taxes, slippage, dividends, liquidity constraints, or early exercise.
-
 The Kelly estimates are based on recent daily return statistics and should not be interpreted as a forecast of future trade outcomes.
 
 ## Roadmap
@@ -81,7 +79,3 @@ Potential extensions include:
 - a Streamlit dashboard with regime probability charts
 - scheduled GitHub Actions runs
 - automated alerts
-
-## License
-
-No license has been specified yet.
