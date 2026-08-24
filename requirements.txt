@@ -1,0 +1,7 @@
+numpy
+pandas
+scipy
+scikit-learn
+yfinance
+# Optional: use a true Hidden Markov Model instead of the Gaussian Mixture fallback.
+hmmlearn
