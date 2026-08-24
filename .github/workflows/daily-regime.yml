@@ -15,6 +15,7 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - name: Run analysis & notify
+        continue-on-error: true
         env:
           RG_DISCORD_WEBHOOK: ${{ secrets.RG_DISCORD_WEBHOOK }}
           RG_TELEGRAM_TOKEN: ${{ secrets.RG_TELEGRAM_TOKEN }}
