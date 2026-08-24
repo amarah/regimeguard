@@ -1,0 +1,25 @@
+name: Daily Regime Check
+on:
+  schedule:
+    - cron: "30 21 * * 1-5"   # after US market close, Mon-Fri
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Run analysis & notify
+        env:
+          RG_DISCORD_WEBHOOK: ${{ secrets.RG_DISCORD_WEBHOOK }}
+          RG_TELEGRAM_TOKEN: ${{ secrets.RG_TELEGRAM_TOKEN }}
+          RG_TELEGRAM_CHAT_ID: ${{ secrets.RG_TELEGRAM_CHAT_ID }}
+        run: |
+          python cli.py \
+            --tickers AAPL MSFT NVDA TLT GLD \
+            --capital 50000 --notify
