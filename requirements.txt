@@ -1,7 +1,12 @@
-numpy
-pandas
-scipy
-scikit-learn
-yfinance
-# Optional: use a true Hidden Markov Model instead of the Gaussian Mixture fallback.
-hmmlearn
+yfinance>=0.2.40
+pandas>=2.0
+numpy>=1.26
+scipy>=1.11
+scikit-learn>=1.4
+hmmlearn>=0.3
+pyarrow>=14
+requests>=2.31
+matplotlib>=3.8
+plotly>=5.20
+streamlit>=1.35
+pytest>=8.0
