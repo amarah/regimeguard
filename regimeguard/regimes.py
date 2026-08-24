@@ -42,7 +42,8 @@ def detect_regime(period: str = "5y") -> tuple[pd.DataFrame, RegimeState]:
         states = model.predict(X.values)
         probs = model.predict_proba(X.values)[-1]
     else:
-        model = GaussianMixture(n_components=3, covariance_type="full",\                                n_init=10, random_state=42)
+        model = GaussianMixture(n_components=3, covariance_type="full",
+                                n_init=10, random_state=42)
         model.fit(X.values)
         states = model.predict(X.values)
         probs = model.predict_proba(X.values)[-1]
