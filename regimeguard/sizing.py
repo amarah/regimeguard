@@ -24,6 +24,11 @@ def estimate_trade_stats(rets: pd.Series, lookback: int = 126):
 
 def size_positions(tickers: list[str], capital: float,
                    regime_mult: float) -> pd.DataFrame:
+    """Size positions within the cash budget, leaving unused capital in cash.
+
+    When individual targets total more than 100%, scale them proportionally.
+    Dollar budgets round down to cents so rounding cannot add leverage.
+    """
     prices = get_prices(tickers, period="2y")
     rows = []
     for t in tickers:
@@ -37,15 +42,21 @@ def size_positions(tickers: list[str], capital: float,
         weight *= min(PORTFOLIO_VOL_TARGET / max(vol, 1e-6), 1.0)
         weight = min(weight, MAX_POSITION_WEIGHT)
         price = float(px.iloc[-1])
-        dollars = capital * weight
         rows.append({
             "ticker": t,
-            "price": round(price, 2),
+            "price": price,
             "win_rate": round(wr, 3),
             "payoff": round(blr, 2),
             "ann_vol": round(vol, 4),
-            "weight": round(weight, 4),
-            "dollars": round(dollars, 2),
-            "shares": int(dollars // price),
+            "weight": weight,
         })
+    total_weight = sum(row["weight"] for row in rows)
+    scale = max(total_weight, 1.0)
+    for row in rows:
+        weight = row["weight"] / scale
+        dollars = float(np.floor(capital * weight * 100) / 100)
+        row["dollars"] = dollars
+        row["shares"] = int(dollars // row["price"])
+        row["weight"] = round(weight, 4)
+        row["price"] = round(row["price"], 2)
     return pd.DataFrame(rows)
