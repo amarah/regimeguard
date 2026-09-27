@@ -5,11 +5,9 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 
-from regimeguard.sizing import size_positions
-
-
 class SizingBudgetTests(unittest.TestCase):
     def size(self, count, capital=10000.0, weight=0.25):
+        from regimeguard.sizing import size_positions
         tickers = [f"T{i}" for i in range(count)]
         prices = pd.DataFrame({ticker: [100.0, 100.1, 100.15, 100.3]
                                for ticker in tickers})
@@ -39,6 +37,7 @@ class SizingBudgetTests(unittest.TestCase):
         self.assertLessEqual((positions.shares * positions.price).sum(), 10000.0)
 
     def test_relative_allocations_are_preserved(self):
+        from regimeguard.sizing import size_positions
         tickers = [f"T{i}" for i in range(6)]
         prices = pd.DataFrame({ticker: [100, 100.1, 100.15, 100.3] for ticker in tickers})
         weights = [0.25, 0.25, 0.25, 0.15, 0.15, 0.15]
@@ -49,6 +48,7 @@ class SizingBudgetTests(unittest.TestCase):
         self.assertLessEqual(positions.dollars.sum(), 12000.0)
 
     def test_empty_price_series_remains_empty(self):
+        from regimeguard.sizing import size_positions
         with patch("regimeguard.sizing.get_prices", return_value=pd.DataFrame({"T": []})):
             self.assertTrue(size_positions(["T"], 10000, 1).empty)
 
