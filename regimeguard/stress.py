@@ -17,7 +17,8 @@ def run_stress_tests(weights: dict[str, float]) -> pd.DataFrame:
             port_ret = (rets[list(weights.keys())] * pd.Series(weights)).sum(axis=1)
             total = (1 + port_ret).prod() - 1
             equity = (1 + port_ret).cumprod()
-            max_dd = ((equity - equity.cummax()) / equity.cummax()).min()
+            running_max = equity.cummax().clip(lower=1.0)
+            max_dd = ((equity - running_max) / running_max).min()
             spy_total = (1 + rets["SPY"].fillna(0)).prod() - 1
             rows.append({
                 "event": name,

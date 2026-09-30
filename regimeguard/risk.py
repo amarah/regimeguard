@@ -29,7 +29,7 @@ def monte_carlo_cvar(weights: dict[str, float], horizon_days: int = 10,
     cvar = cumulative[cumulative <= var].mean()
 
     equity = np.cumprod(1 + paths, axis=1)
-    running_max = np.maximum.accumulate(equity, axis=1)
+    running_max = np.maximum(1.0, np.maximum.accumulate(equity, axis=1))
     dd = ((equity - running_max) / running_max).min(axis=1)
     dd_var = np.percentile(dd, (1 - alpha) * 100)
 
