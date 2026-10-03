@@ -16,6 +16,31 @@ from .data import get_prices
 from .regimes import detect_regime
 
 
+def _performance_metrics(series: pd.Series, initial_capital: float) -> dict:
+    """Summarize a simulated equity curve, including its first daily return."""
+    if series.empty or initial_capital <= 0:
+        raise ValueError("An equity curve and positive initial capital are required.")
+    first_return = series.iloc[0] / initial_capital - 1
+    returns = pd.concat([
+        pd.Series([first_return], index=[series.index[0]]),
+        series.pct_change().iloc[1:],
+    ])
+    total = series.iloc[-1] / initial_capital - 1
+    years = len(returns) / TRADING_DAYS
+    annualized = (1 + total) ** (1 / years) - 1 if years > 0 else 0
+    running_max = series.cummax().clip(lower=initial_capital)
+    drawdown = ((series - running_max) / running_max).min()
+    volatility = returns.std()
+    sharpe = (returns.mean() / volatility * np.sqrt(TRADING_DAYS)
+              if np.isfinite(volatility) and volatility > 0 else 0)
+    downside = returns[returns < 0].std() * np.sqrt(TRADING_DAYS)
+    sortino = (returns.mean() * TRADING_DAYS / downside
+               if np.isfinite(downside) and downside > 0 else 0)
+    return {"total_return": round(total, 4), "cagr": round(annualized, 4),
+            "max_drawdown": round(drawdown, 4), "sharpe": round(sharpe, 2),
+            "sortino": round(sortino, 2)}
+
+
 def _fit_regime_series(spy_rets: pd.Series) -> pd.Series:
     _, state = detect_regime()
     mult_map = {"RISK-ON": 1.0, "CHOPPY": 0.6, "RISK-OFF": 0.25}
@@ -75,23 +100,10 @@ def run_backtest(tickers: list[str], capital: float = 100_000,
 
     curve = pd.DataFrame(curves, index=rets.index)
 
-    def metrics(series):
-        r = series.pct_change().dropna()
-        total = series.iloc[-1] / series.iloc[0] - 1
-        years = len(r) / TRADING_DAYS
-        ann = (1 + total) ** (1 / years) - 1 if years > 0 else 0
-        dd = ((series - series.cummax()) / series.cummax()).min()
-        sharpe = r.mean() / r.std() * np.sqrt(TRADING_DAYS) if r.std() else 0
-        sortino_denom = r[r < 0].std() * np.sqrt(TRADING_DAYS)
-        sortino = r.mean() * TRADING_DAYS / sortino_denom if sortino_denom else 0
-        return {"total_return": round(total, 4), "cagr": round(ann, 4),
-                "max_drawdown": round(dd, 4), "sharpe": round(sharpe, 2),
-                "sortino": round(sortino, 2)}
-
     return {"curve": curve,
-            "strategy_metrics": metrics(curve["strategy"]),
-            "spy_metrics": metrics(curve["spy"]),
-            "bh_metrics": metrics(curve["equal_weight_bh"])}
+            "strategy_metrics": _performance_metrics(curve["strategy"], capital),
+            "spy_metrics": _performance_metrics(curve["spy"], capital),
+            "bh_metrics": _performance_metrics(curve["equal_weight_bh"], capital)}
 
 
 def print_backtest_report(result: dict):
