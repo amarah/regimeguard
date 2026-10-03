@@ -16,4 +16,4 @@ jobs:
       - name: Run offline unit tests
         env:
           RG_CACHE_DIR: /tmp/rg-cache
-        run: pytest tests/ -v
+        run: python -m pytest tests/ -v
