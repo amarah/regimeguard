@@ -7,6 +7,7 @@ All use real option chains via yfinance.
 """
 
 from dataclasses import dataclass
+from math import ceil
 
 import numpy as np
 import pandas as pd
@@ -24,6 +25,15 @@ class PutCandidate:
     protection_floor: str
     days_to_expiry: int
     efficiency: float
+
+
+def contracts_for_position(position_value: float, spot: float) -> int:
+    """Return whole option contracts needed to cover the position's shares."""
+    if position_value <= 0:
+        return 0
+    if spot <= 0:
+        raise ValueError("Spot price must be positive.")
+    return ceil(position_value / (spot * 100))
 
 
 def _norm_cdf(x: float) -> float:
@@ -78,7 +88,7 @@ def optimize_hedge(tickers: list[str], position_values: dict[str, float],
             strike, prem, spot = row["strike"], row["lastPrice"], row["spot"]
             if prem <= 0 or np.isnan(prem):
                 continue
-            contracts_needed = int(pos_val // (strike * 100)) or 1
+            contracts_needed = contracts_for_position(pos_val, spot)
             total_cost = contracts_needed * prem * 100
             cost_pct = total_cost / pos_val
             floor_loss_pct = 1 - (strike / spot)
@@ -152,7 +162,7 @@ def optimize_collar(tickers: list[str], position_values: dict[str, float],
                     best_diff, best_call = diff, c
             if best_call is None or best_call["bid"] <= 0:
                 continue
-            n_contracts = max(int(pos_val // (p["strike"] * 100)), 1)
+            n_contracts = contracts_for_position(pos_val, spot)
             net_cost = (p["ask"] - best_call["bid"]) * 100 * n_contracts
             cost_pct = net_cost / pos_val
             if cost_pct > max_cost_pct:
@@ -215,7 +225,7 @@ def build_put_spreads(tickers: list[str], position_values: dict[str, float],
             if debit <= 0:
                 continue
             max_profit = (long_k - short_k) - debit
-            contracts = max(int(pos_val // (long_k * 100)), 1)
+            contracts = contracts_for_position(pos_val, spot)
             rows.append({
                 "ticker": t, "expiry": expiry,
                 "spread": f"{long_k:.0f}/{short_k:.0f}P",
