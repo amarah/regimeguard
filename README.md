@@ -107,6 +107,11 @@ Add these GitHub Actions secrets:
 
 No secrets are stored in source code. `.env` is ignored locally and `.env.example` documents the expected environment variables.
 
+Alert delivery checks the HTTP response before reporting success. Rejected
+requests and network failures raise an error instead of appearing as sent.
+Delivery stops at the first error; retries and independent channel delivery
+are not implemented.
+
 ## How the engine works
 
 ### 1. Market regime
@@ -163,10 +168,13 @@ Exact values depend on the live market data returned by Yahoo Finance.
 Install the development dependencies from `requirements.txt`, then run:
 
 ```bash
-pytest tests/ -v
+python -m pytest tests/ -v
 ```
 
-The included tests cover Kelly bounds, Monte Carlo CVaR ordering, Black-Scholes put sanity bounds, and correlation-cluster membership. Tests that exercise market-data modules require network access to Yahoo Finance.
+The tests cover risk calculations, alert delivery, and price caching. HTTP
+requests and market-data downloads are replaced with test doubles, so tests
+do not send notifications or contact Yahoo Finance. Cache tests use temporary
+Parquet files.
 
 ## Data and operational notes
 
@@ -209,3 +217,4 @@ The included tests cover Kelly bounds, Monte Carlo CVaR ordering, Black-Scholes 
 ## Disclaimer
 
 RegimeGuard is an educational quantitative-risk analysis project. Its outputs are estimates based on historical market data, model assumptions, and simulated scenarios. They are not guarantees of future performance and are not investment, trading, legal, or financial advice.
+
