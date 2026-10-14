@@ -180,6 +180,9 @@ Parquet files.
 
 - Market data is fetched through `yfinance`.
 - Local price data is cached as Parquet for 12 hours by the package data layer.
+- Fresh and cached prices both exclude rows where every symbol is missing;
+  partially populated rows remain. Cache expiry uses elapsed seconds, independent
+  of the machine's timezone. Future-dated cache files are refreshed.
 - Option chains are live external data and can occasionally fail when Yahoo changes its API.
 - Weekend runs can contain stale market quotes.
 - A first long-period backtest can take materially longer because regime fitting is computationally heavier.
