@@ -109,6 +109,9 @@ No secrets are stored in source code. `.env` is ignored locally and `.env.exampl
 
 Alert delivery checks the HTTP response before reporting success. Rejected
 requests and network failures raise an error instead of appearing as sent.
+Transport failures raise `AlertDeliveryError` with the channel name, without
+including the credential-bearing request URL or the original exception chain
+in standard tracebacks. Avoid logging exception locals or request objects.
 Delivery stops at the first error; retries and independent channel delivery
 are not implemented.
 
@@ -220,4 +223,5 @@ Parquet files.
 ## Disclaimer
 
 RegimeGuard is an educational quantitative-risk analysis project. Its outputs are estimates based on historical market data, model assumptions, and simulated scenarios. They are not guarantees of future performance and are not investment, trading, legal, or financial advice.
+
 

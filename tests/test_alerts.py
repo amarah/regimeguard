@@ -19,7 +19,7 @@ def test_http_failure_is_not_reported_as_sent(monkeypatch, send):
     response = Mock()
     response.raise_for_status.side_effect = requests.HTTPError('delivery rejected')
     monkeypatch.setattr(alerts.requests, 'post', Mock(return_value=response))
-    with pytest.raises(requests.HTTPError):
+    with pytest.raises(alerts.AlertDeliveryError):
         send('test report')
 
 
@@ -36,7 +36,7 @@ def test_success_checks_response(monkeypatch, send):
 @pytest.mark.parametrize('send', [alerts.send_discord, alerts.send_telegram])
 def test_timeouts_propagate(monkeypatch, send):
     monkeypatch.setattr(alerts.requests, 'post', Mock(side_effect=requests.Timeout))
-    with pytest.raises(requests.Timeout):
+    with pytest.raises(alerts.AlertDeliveryError):
         send('test report')
 
 
@@ -52,3 +52,4 @@ def test_unconfigured_channels_make_no_requests(monkeypatch):
 def test_notify_all_lists_successful_channels(monkeypatch):
     monkeypatch.setattr(alerts.requests, 'post', Mock(return_value=Mock()))
     assert alerts.notify_all('test report') == ['discord', 'telegram']
+
