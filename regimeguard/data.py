@@ -1,6 +1,7 @@
 """Data fetching with local parquet caching to avoid rate limits."""
 import os
 import time
+import tempfile
 
 import pandas as pd
 import yfinance as yf
@@ -27,7 +28,14 @@ def get_prices(tickers: list[str], period: str = "5y") -> pd.DataFrame:
     df = df.dropna(how="all")
     if df.empty:
         raise ValueError("No price data returned; the download was not cached. Try again later.")
-    df.to_parquet(path)
+    # Publish only a complete Parquet file. A same-directory replacement is
+    # atomic, so readers keep seeing the old cache until serialization succeeds.
+    fd, temporary = tempfile.mkstemp(prefix=".prices-", suffix=".parquet", dir=CACHE_DIR)
+    os.close(fd)
+    try:
+        df.to_parquet(temporary)
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
     return df
-
-

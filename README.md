@@ -183,6 +183,9 @@ Parquet files.
 
 - Market data is fetched through `yfinance`.
 - Local price data is cached as Parquet for 12 hours by the package data layer.
+- Cache refreshes write to a temporary file before an atomic replacement, so
+  a failed write leaves the previous cache intact. Errors still propagate;
+  stale prices are not silently substituted for a failed refresh.
 - Empty downloads raise a clear error and are not cached. Existing empty cache
   entries are retried, so a temporary data outage does not block the next run.
 - Fresh and cached prices both exclude rows where every symbol is missing;
@@ -225,5 +228,3 @@ Parquet files.
 ## Disclaimer
 
 RegimeGuard is an educational quantitative-risk analysis project. Its outputs are estimates based on historical market data, model assumptions, and simulated scenarios. They are not guarantees of future performance and are not investment, trading, legal, or financial advice.
-
-
