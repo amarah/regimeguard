@@ -34,8 +34,10 @@ def _norm_cdf(x: float) -> float:
 def black_scholes_put(S: float, K: float, T: float, r: float = 0.04,
                       sigma: float = 0.25) -> float:
     """Theoretical put price — sanity-checks market quotes."""
-    if T <= 0 or S <= 0 or sigma <= 0:
+    if T <= 0 or S <= 0 or sigma < 0:
         return max(K - S, 0)
+    if sigma == 0:
+        return max(K * np.exp(-r * T) - S, 0)
     d1 = (np.log(S / K) + (r + sigma**2 / 2) * T) / (sigma * np.sqrt(T))
     d2 = d1 - sigma * np.sqrt(T)
     return max(K * np.exp(-r * T) * _norm_cdf(-d2) - S * _norm_cdf(-d1), 0)
