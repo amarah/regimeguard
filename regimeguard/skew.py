@@ -1,4 +1,6 @@
 """IV skew analysis — is downside insurance cheap or rich today?"""
+from math import isfinite
+
 import pandas as pd
 import yfinance as yf
 
@@ -13,7 +15,7 @@ def analyze_skew(ticker: str) -> dict:
         spot = tk.fast_info.get("last_price")
     except Exception:
         return {}
-    if not spot:
+    if spot is None or not isfinite(spot) or spot <= 0:
         return {}
     expiry = next((e for e in tk.options
                    if 20 <= (pd.Timestamp(e) - pd.Timestamp.now()).days <= 45), None)
@@ -33,7 +35,7 @@ def analyze_skew(ticker: str) -> dict:
 
     put_iv = iv_near_moneyness(puts, "put")
     call_iv = iv_near_moneyness(calls, "call")
-    if not put_iv or not call_iv:
+    if any(iv is None or not isfinite(iv) or iv <= 0 for iv in (put_iv, call_iv)):
         return {}
     skew = put_iv - call_iv
 
