@@ -33,7 +33,7 @@ def detect_regime(period: str = "5y") -> tuple[pd.DataFrame, RegimeState]:
     rets = spy.pct_change().dropna()
     vol = rets.rolling(21).std() * np.sqrt(TRADING_DAYS)
     mom = spy.pct_change(63)
-    X = pd.concat([rets, vol, mom], axis=1).dropna()
+    X = pd.concat({"ret": rets, "vol": vol, "mom": mom}, axis=1).dropna()
 
     if HAS_HMM:
         model = GaussianHMM(n_components=3, covariance_type="full",
