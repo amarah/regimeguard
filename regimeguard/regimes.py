@@ -34,6 +34,8 @@ def detect_regime(period: str = "5y") -> tuple[pd.DataFrame, RegimeState]:
     vol = rets.rolling(21).std() * np.sqrt(TRADING_DAYS)
     mom = spy.pct_change(63)
     X = pd.concat({"ret": rets, "vol": vol, "mom": mom}, axis=1).dropna()
+    if len(X) < 3:
+        raise ValueError("Regime detection needs at least 3 complete feature rows after the 63-day warmup.")
 
     if HAS_HMM:
         model = GaussianHMM(n_components=3, covariance_type="full",
@@ -51,6 +53,8 @@ def detect_regime(period: str = "5y") -> tuple[pd.DataFrame, RegimeState]:
     tmp = X.copy()
     tmp["state"] = states
     means = tmp.groupby("state")["ret"].mean().sort_values(ascending=False)
+    if len(means) != 3:
+        raise ValueError("Regime model did not populate all 3 states; no exposure label can be assigned.")
     label_map = {means.index[0]: "RISK-ON",
                  means.index[1]: "CHOPPY",
                  means.index[2]: "RISK-OFF"}
