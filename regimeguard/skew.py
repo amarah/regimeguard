@@ -22,8 +22,8 @@ def analyze_skew(ticker: str) -> dict:
     if not expiry:
         return {}
 
-    puts = tk.option_chain(expiry).puts
-    calls = tk.option_chain(expiry).calls
+    chain = tk.option_chain(expiry)
+    puts, calls = chain.puts, chain.calls
 
     def iv_near_moneyness(df, side):
         target = spot * (0.93 if side == "put" else 1.07)
