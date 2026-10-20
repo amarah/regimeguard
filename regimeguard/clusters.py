@@ -5,7 +5,7 @@ from .data import get_prices
 
 
 def correlation_clusters(tickers: list[str], threshold: float = 0.75):
-    corr = get_prices(tickers, period="2y").pct_change().dropna().corr()
+    corr = get_prices(tickers, period="2y").pct_change(fill_method=None).dropna().corr()
     parent = {t: t for t in corr.columns}
 
     def find(x):
