@@ -43,8 +43,6 @@ def main():
         weights = dict(zip(sizes["ticker"], sizes["dollars"] / total))
 
     risk = monte_carlo_cvar(weights) if weights else {}
-    stress = run_stress_tests(weights) if weights else pd.DataFrame()
-    clusters = correlation_clusters(args.tickers)
 
     if args.json:
         print(json.dumps({
@@ -56,6 +54,9 @@ def main():
             "risk": risk,
         }, indent=2))
         return
+
+    stress = run_stress_tests(weights) if weights else pd.DataFrame()
+    clusters = correlation_clusters(args.tickers)
 
     print("═" * 62)
     print(f"  REGIMEGUARD v1.0 — {pd.Timestamp.now():%Y-%m-%d %H:%M}")
