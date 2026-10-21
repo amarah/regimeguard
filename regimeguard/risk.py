@@ -20,7 +20,9 @@ def monte_carlo_cvar(weights: dict[str, float], horizon_days: int = 10,
     if student_t:
         nu = 5
         scale = np.sqrt(nu / rng.chisquare(nu, size=(sims, horizon_days, 1)))
-        z *= scale
+        # A raw Student-t draw has variance nu / (nu - 2). Standardize it so
+        # the fitted covariance still controls volatility while tails get heavier.
+        z *= scale * np.sqrt((nu - 2) / nu)
 
     paths = (z @ L.T + mu) @ w
     cumulative = np.prod(1 + paths, axis=1) - 1
