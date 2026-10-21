@@ -6,15 +6,22 @@ from .config import STRESS_EVENTS
 
 
 def run_stress_tests(weights: dict[str, float]) -> pd.DataFrame:
-    prices = get_prices(list(weights.keys()) + ["SPY"], period="max")
+    tickers = list(weights.keys())
+    requested = tickers if "SPY" in weights else tickers + ["SPY"]
+    prices = get_prices(requested, period="max")
     rows = []
     for name, (start, end) in STRESS_EVENTS.items():
         try:
             window = prices.loc[start:end]
             if len(window) < 5:
                 continue
-            rets = window.pct_change().dropna()
-            port_ret = (rets[list(weights.keys())] * pd.Series(weights)).sum(axis=1)
+            # Filling a missing quote creates a zero return followed by a
+            # multi-day return. Use only genuinely adjacent, aligned prices.
+            rets = window.pct_change(fill_method=None).dropna(
+                subset=list(dict.fromkeys(tickers + ["SPY"])))
+            if rets.empty:
+                continue
+            port_ret = (rets[tickers] * pd.Series(weights)).sum(axis=1)
             total = (1 + port_ret).prod() - 1
             equity = (1 + port_ret).cumprod()
             max_dd = ((equity - equity.cummax()) / equity.cummax()).min()
