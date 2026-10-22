@@ -30,9 +30,9 @@ MULTIPLIERS = {"RISK-ON": 1.0, "CHOPPY": 0.6, "RISK-OFF": 0.25}
 
 def detect_regime(period: str = "5y") -> tuple[pd.DataFrame, RegimeState]:
     spy = get_prices(["SPY"], period)["SPY"]
-    rets = spy.pct_change().dropna()
+    rets = spy.pct_change(fill_method=None)
     vol = rets.rolling(21).std() * np.sqrt(TRADING_DAYS)
-    mom = spy.pct_change(63)
+    mom = spy.pct_change(63, fill_method=None)
     X = pd.concat({"ret": rets, "vol": vol, "mom": mom}, axis=1).dropna()
     if len(X) < 3:
         raise ValueError("Regime detection needs at least 3 complete feature rows after the 63-day warmup.")
