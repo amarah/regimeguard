@@ -8,7 +8,7 @@ def monte_carlo_cvar(weights: dict[str, float], horizon_days: int = 10,
                      sims: int = 20_000, alpha: float = 0.95,
                      student_t: bool = True) -> dict:
     tickers = list(weights.keys())
-    rets = get_prices(tickers, period="3y").pct_change().dropna()
+    rets = get_prices(tickers, period="3y").pct_change(fill_method=None).dropna()
     mu, cov = rets.mean().values, rets.cov().values
     w = np.array([weights.get(c, 0) for c in rets.columns])
     w /= w.sum()

@@ -45,6 +45,35 @@ def test_mc_cvar_worse_than_var(monkeypatch):
     assert res["prob_loss"] > 0
 
 
+def test_mc_cvar_does_not_fill_missing_prices(monkeypatch):
+    """A missing quote must not become a flat daily return."""
+    import regimeguard.risk as risk_mod
+
+    index = pd.bdate_range("2025-01-01", periods=90)
+    prices = pd.DataFrame({
+        "AAPL": np.linspace(100, 130, len(index)),
+        "MSFT": np.linspace(200, 230, len(index)),
+    }, index=index)
+    prices.loc[index[45], "AAPL"] = np.nan
+    expected = prices.pct_change(fill_method=None).dropna()
+
+    class Prices(pd.DataFrame):
+        @property
+        def _constructor(self):
+            return Prices
+
+        def pct_change(self, *args, **kwargs):
+            assert kwargs.get("fill_method") is None
+            result = super().pct_change(*args, **kwargs)
+            pd.testing.assert_frame_equal(pd.DataFrame(result).dropna(), expected)
+            return result
+
+    monkeypatch.setattr(risk_mod, "get_prices", lambda *args, **kwargs: Prices(prices))
+    result = risk_mod.monte_carlo_cvar({"AAPL": 0.5, "MSFT": 0.5}, sims=100)
+
+    assert np.isfinite(result["VaR_95"])
+
+
 def test_correlation_clustering(monkeypatch):
     import regimeguard.clusters as clusters_mod
 
