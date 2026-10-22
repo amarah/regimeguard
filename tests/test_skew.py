@@ -7,8 +7,10 @@ import pytest
 from regimeguard import skew
 
 
-def fake_ticker(monkeypatch, spot=100.0, put_iv=0.30, call_iv=0.20):
-    expiry = (pd.Timestamp.now() + pd.Timedelta(days=30)).strftime("%Y-%m-%d")
+def fake_ticker(monkeypatch, spot=100.0, put_iv=0.30, call_iv=0.20,
+                expiry_days=30):
+    expiry = (pd.Timestamp.now().normalize()
+              + pd.Timedelta(days=expiry_days)).strftime("%Y-%m-%d")
     chain = SimpleNamespace(
         puts=pd.DataFrame({"strike": [92.0], "impliedVolatility": [put_iv]}),
         calls=pd.DataFrame({"strike": [108.0], "impliedVolatility": [call_iv]}),
@@ -38,3 +40,12 @@ def test_valid_skew_is_preserved(monkeypatch):
     assert result["put_iv_25d_proxy"] == 0.30
     assert result["call_iv_25d_proxy"] == 0.20
     assert "EXPENSIVE" in result["verdict"]
+
+
+def test_twenty_calendar_day_expiry_is_included(monkeypatch):
+    fake_ticker(monkeypatch, expiry_days=20)
+
+    result = skew.analyze_skew("TEST")
+
+    assert result["expiry"] == (pd.Timestamp.now().normalize()
+                                + pd.Timedelta(days=20)).strftime("%Y-%m-%d")

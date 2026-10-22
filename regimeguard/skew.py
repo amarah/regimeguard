@@ -17,8 +17,9 @@ def analyze_skew(ticker: str) -> dict:
         return {}
     if spot is None or not isfinite(spot) or spot <= 0:
         return {}
+    today = pd.Timestamp.now().normalize()
     expiry = next((e for e in tk.options
-                   if 20 <= (pd.Timestamp(e) - pd.Timestamp.now()).days <= 45), None)
+                   if 20 <= (pd.Timestamp(e).normalize() - today).days <= 45), None)
     if not expiry:
         return {}
 
