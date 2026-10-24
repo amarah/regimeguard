@@ -39,6 +39,20 @@ def test_existing_cache_with_empty_rows_is_cleaned(monkeypatch, cache):
     pd.testing.assert_frame_equal(data.get_prices(['AAPL', 'MSFT']), prices().dropna(how='all'), check_freq=False)
 
 
+def test_corrupt_fresh_cache_is_replaced(monkeypatch, cache):
+    path = cache / 'AAPL_MSFT_5y.parquet'
+    path.write_bytes(b'not a parquet file')
+    fresh = prices() * 2
+    download = Mock(return_value=pd.concat({'Close': fresh}, axis=1))
+    monkeypatch.setattr(data.yf, 'download', download)
+
+    result = data.get_prices(['AAPL', 'MSFT'])
+
+    pd.testing.assert_frame_equal(result, fresh.dropna(how='all'), check_freq=False)
+    pd.testing.assert_frame_equal(pd.read_parquet(path), result, check_freq=False)
+    download.assert_called_once()
+
+
 def test_stale_cache_downloads_replacement(monkeypatch, cache):
     path = cache / 'AAPL_MSFT_5y.parquet'
     prices().to_parquet(path)

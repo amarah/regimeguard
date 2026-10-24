@@ -18,7 +18,10 @@ def get_prices(tickers: list[str], period: str = "5y") -> pd.DataFrame:
     if os.path.exists(path):
         age = time.time() - os.path.getmtime(path)
         if 0 <= age < 12 * 3600:
-            cached = pd.read_parquet(path).dropna(how="all")
+            try:
+                cached = pd.read_parquet(path).dropna(how="all")
+            except (OSError, ValueError):
+                cached = pd.DataFrame()
             if not cached.empty:
                 return cached
 
