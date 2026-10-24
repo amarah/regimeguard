@@ -45,6 +45,25 @@ def test_mc_cvar_worse_than_var(monkeypatch):
     assert res["prob_loss"] > 0
 
 
+def test_mc_cvar_labels_requested_confidence(monkeypatch):
+    import regimeguard.risk as risk_mod
+
+    monkeypatch.setattr(risk_mod, "get_prices",
+                        lambda tickers, period="3y": _fake_prices(("AAPL",)))
+    result = risk_mod.monte_carlo_cvar({"AAPL": 1.0}, sims=1000, alpha=0.99)
+
+    assert {"VaR_99", "CVaR_99", "DaR_99"} <= result.keys()
+    assert not {"VaR_95", "CVaR_95", "DaR_95"} & result.keys()
+
+
+@pytest.mark.parametrize("alpha", [0, 1, -0.1, 1.1])
+def test_mc_cvar_rejects_invalid_confidence(alpha):
+    from regimeguard.risk import monte_carlo_cvar
+
+    with pytest.raises(ValueError, match="between 0 and 1"):
+        monte_carlo_cvar({"AAPL": 1.0}, alpha=alpha)
+
+
 def test_mc_cvar_does_not_fill_missing_prices(monkeypatch):
     """A missing quote must not become a flat daily return."""
     import regimeguard.risk as risk_mod

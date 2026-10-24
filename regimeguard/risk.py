@@ -7,6 +7,8 @@ from .data import get_prices
 def monte_carlo_cvar(weights: dict[str, float], horizon_days: int = 10,
                      sims: int = 20_000, alpha: float = 0.95,
                      student_t: bool = True) -> dict:
+    if not 0 < alpha < 1:
+        raise ValueError("alpha must be between 0 and 1.")
     tickers = list(weights.keys())
     rets = get_prices(tickers, period="3y").pct_change(fill_method=None).dropna()
     mu, cov = rets.mean().values, rets.cov().values
@@ -35,11 +37,12 @@ def monte_carlo_cvar(weights: dict[str, float], horizon_days: int = 10,
     dd = ((equity - running_max) / running_max).min(axis=1)
     dd_var = np.percentile(dd, (1 - alpha) * 100)
 
+    confidence = f"{alpha * 100:.6f}".rstrip("0").rstrip(".").replace(".", "_")
     return {
-        "VaR_95": round(float(-var), 4),
-        "CVaR_95": round(float(-cvar), 4),
+        f"VaR_{confidence}": round(float(-var), 4),
+        f"CVaR_{confidence}": round(float(-cvar), 4),
         "worst_sim": round(float(-cumulative.min()), 4),
         "median_return": round(float(np.median(cumulative)), 4),
         "prob_loss": round(float((cumulative < 0).mean()), 4),
-        "DaR_95": round(float(-dd_var), 4),
+        f"DaR_{confidence}": round(float(-dd_var), 4),
     }
