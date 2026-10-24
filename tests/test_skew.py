@@ -49,3 +49,25 @@ def test_twenty_calendar_day_expiry_is_included(monkeypatch):
 
     assert result["expiry"] == (pd.Timestamp.now().normalize()
                                 + pd.Timedelta(days=20)).strftime("%Y-%m-%d")
+
+
+@pytest.mark.parametrize("failure", ["expiries", "chain"])
+def test_provider_failures_have_no_verdict(monkeypatch, failure):
+    expiry = (pd.Timestamp.now().normalize()
+              + pd.Timedelta(days=30)).strftime("%Y-%m-%d")
+
+    class Ticker:
+        fast_info = {"last_price": 100.0}
+
+        @property
+        def options(self):
+            if failure == "expiries":
+                raise RuntimeError("provider unavailable")
+            return [expiry]
+
+        def option_chain(self, _):
+            raise RuntimeError("provider unavailable")
+
+    monkeypatch.setattr(skew.yf, "Ticker", lambda _: Ticker())
+
+    assert skew.analyze_skew("TEST") == {}

@@ -18,12 +18,19 @@ def analyze_skew(ticker: str) -> dict:
     if spot is None or not isfinite(spot) or spot <= 0:
         return {}
     today = pd.Timestamp.now().normalize()
-    expiry = next((e for e in tk.options
+    try:
+        expiries = tk.options
+    except Exception:
+        return {}
+    expiry = next((e for e in expiries
                    if 20 <= (pd.Timestamp(e).normalize() - today).days <= 45), None)
     if not expiry:
         return {}
 
-    chain = tk.option_chain(expiry)
+    try:
+        chain = tk.option_chain(expiry)
+    except Exception:
+        return {}
     puts, calls = chain.puts, chain.calls
 
     def iv_near_moneyness(df, side):
