@@ -9,10 +9,28 @@ def monte_carlo_cvar(weights: dict[str, float], horizon_days: int = 10,
                      student_t: bool = True) -> dict:
     if not 0 < alpha < 1:
         raise ValueError("alpha must be between 0 and 1.")
+    if not isinstance(horizon_days, int) or isinstance(horizon_days, bool) or horizon_days <= 0:
+        raise ValueError("horizon_days must be a positive integer.")
+    if not isinstance(sims, int) or isinstance(sims, bool) or sims <= 0:
+        raise ValueError("sims must be a positive integer.")
+    if not weights:
+        raise ValueError("At least one portfolio weight is required.")
+    try:
+        supplied_weights = np.asarray(list(weights.values()), dtype=float)
+    except (TypeError, ValueError):
+        raise ValueError("Portfolio weights must be finite numbers.") from None
+    if not np.isfinite(supplied_weights).all():
+        raise ValueError("Portfolio weights must be finite numbers.")
+    if np.isclose(supplied_weights.sum(), 0):
+        raise ValueError("Portfolio weights must have a nonzero net total.")
     tickers = list(weights.keys())
     rets = get_prices(tickers, period="3y").pct_change(fill_method=None).dropna()
+    if len(rets) < 2:
+        raise ValueError("Risk estimation needs at least two aligned return observations.")
     mu, cov = rets.mean().values, rets.cov().values
-    w = np.array([weights.get(c, 0) for c in rets.columns])
+    w = np.array([float(weights.get(c, 0)) for c in rets.columns])
+    if np.isclose(w.sum(), 0):
+        raise ValueError("Downloaded assets must have a nonzero net portfolio weight.")
     w /= w.sum()
 
     rng = np.random.default_rng(7)

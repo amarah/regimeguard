@@ -64,6 +64,31 @@ def test_mc_cvar_rejects_invalid_confidence(alpha):
         monte_carlo_cvar({"AAPL": 1.0}, alpha=alpha)
 
 
+@pytest.mark.parametrize("kwargs, message", [
+    ({"weights": {}}, "At least one"),
+    ({"weights": {"AAPL": float("nan")}}, "finite"),
+    ({"weights": {"AAPL": 1.0, "MSFT": -1.0}}, "nonzero net"),
+    ({"weights": {"AAPL": 1.0}, "horizon_days": 0}, "horizon_days"),
+    ({"weights": {"AAPL": 1.0}, "horizon_days": 2.5}, "horizon_days"),
+    ({"weights": {"AAPL": 1.0}, "sims": 0}, "sims"),
+])
+def test_mc_cvar_rejects_invalid_simulation_inputs(kwargs, message):
+    from regimeguard.risk import monte_carlo_cvar
+
+    with pytest.raises(ValueError, match=message):
+        monte_carlo_cvar(**kwargs)
+
+
+def test_mc_cvar_requires_enough_aligned_returns(monkeypatch):
+    import regimeguard.risk as risk_mod
+
+    prices = pd.DataFrame({"AAPL": [100.0, 101.0]})
+    monkeypatch.setattr(risk_mod, "get_prices", lambda *args, **kwargs: prices)
+
+    with pytest.raises(ValueError, match="at least two aligned"):
+        risk_mod.monte_carlo_cvar({"AAPL": 1.0})
+
+
 def test_mc_cvar_does_not_fill_missing_prices(monkeypatch):
     """A missing quote must not become a flat daily return."""
     import regimeguard.risk as risk_mod
