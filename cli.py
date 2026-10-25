@@ -22,6 +22,20 @@ from regimeguard.skew import print_skew_report
 from regimeguard.backtest import run_backtest, print_backtest_report
 
 
+def normalize_tickers(tickers: list[str]) -> list[str]:
+    """Canonicalize symbols and keep the first occurrence of each."""
+    normalized = []
+    seen = set()
+    for ticker in tickers:
+        symbol = ticker.strip().upper()
+        if not symbol:
+            raise ValueError("Ticker symbols cannot be blank.")
+        if symbol not in seen:
+            seen.add(symbol)
+            normalized.append(symbol)
+    return normalized
+
+
 def main():
     ap = argparse.ArgumentParser(prog="regimeguard")
     ap.add_argument("--tickers", nargs="+", required=True)
@@ -34,6 +48,7 @@ def main():
     ap.add_argument("--skew", action="store_true", help="IV skew analysis")
     ap.add_argument("--backtest", action="store_true")
     args = ap.parse_args()
+    args.tickers = normalize_tickers(args.tickers)
 
     _, regime = detect_regime()
     sizes = size_positions(args.tickers, args.capital, regime.position_multiplier)
