@@ -34,8 +34,15 @@ def send_telegram(message: str):
 
 
 def notify_all(message: str):
-    sent = [ch for fn, ch in [(send_discord, "discord"),
-                              (send_telegram, "telegram")] if fn(message)]
+    sent = []
+    failures = 0
+    for send, channel in [(send_discord, "discord"),
+                          (send_telegram, "telegram")]:
+        try:
+            if send(message):
+                sent.append(channel)
+        except AlertDeliveryError:
+            failures += 1
+    if not sent and failures:
+        raise AlertDeliveryError("All configured alert deliveries failed.")
     return sent
-
-

@@ -53,3 +53,23 @@ def test_notify_all_lists_successful_channels(monkeypatch):
     monkeypatch.setattr(alerts.requests, 'post', Mock(return_value=Mock()))
     assert alerts.notify_all('test report') == ['discord', 'telegram']
 
+
+def test_notify_all_uses_remaining_channel_after_failure(monkeypatch):
+    discord = Mock(side_effect=alerts.AlertDeliveryError('Discord failed.'))
+    telegram = Mock(return_value=True)
+    monkeypatch.setattr(alerts, 'send_discord', discord)
+    monkeypatch.setattr(alerts, 'send_telegram', telegram)
+
+    assert alerts.notify_all('test report') == ['telegram']
+    discord.assert_called_once_with('test report')
+    telegram.assert_called_once_with('test report')
+
+
+def test_notify_all_reports_when_every_configured_channel_fails(monkeypatch):
+    monkeypatch.setattr(alerts, 'send_discord',
+                        Mock(side_effect=alerts.AlertDeliveryError('Discord failed.')))
+    monkeypatch.setattr(alerts, 'send_telegram',
+                        Mock(side_effect=alerts.AlertDeliveryError('Telegram failed.')))
+
+    with pytest.raises(alerts.AlertDeliveryError, match='All configured'):
+        alerts.notify_all('test report')
