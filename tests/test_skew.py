@@ -71,3 +71,34 @@ def test_provider_failures_have_no_verdict(monkeypatch, failure):
     monkeypatch.setattr(skew.yf, "Ticker", lambda _: Ticker())
 
     assert skew.analyze_skew("TEST") == {}
+
+
+@pytest.mark.parametrize(
+    "puts,calls",
+    [
+        (pd.DataFrame({"strike": [92.0]}),
+         pd.DataFrame({"strike": [108.0], "impliedVolatility": [0.20]})),
+        (pd.DataFrame({"strike": [92.0], "impliedVolatility": ["missing"]}),
+         pd.DataFrame({"strike": [108.0], "impliedVolatility": [0.20]})),
+        (None, pd.DataFrame({"strike": [108.0], "impliedVolatility": [0.20]})),
+    ],
+)
+def test_malformed_chain_has_no_verdict(monkeypatch, puts, calls):
+    expiry = (pd.Timestamp.now().normalize()
+              + pd.Timedelta(days=30)).strftime("%Y-%m-%d")
+    chain = SimpleNamespace(puts=puts, calls=calls)
+    ticker = SimpleNamespace(fast_info={"last_price": 100.0}, options=[expiry],
+                             option_chain=lambda _: chain)
+    monkeypatch.setattr(skew.yf, "Ticker", lambda _: ticker)
+
+    assert skew.analyze_skew("TEST") == {}
+
+
+def test_chain_without_sides_has_no_verdict(monkeypatch):
+    expiry = (pd.Timestamp.now().normalize()
+              + pd.Timedelta(days=30)).strftime("%Y-%m-%d")
+    ticker = SimpleNamespace(fast_info={"last_price": 100.0}, options=[expiry],
+                             option_chain=lambda _: SimpleNamespace())
+    monkeypatch.setattr(skew.yf, "Ticker", lambda _: ticker)
+
+    assert skew.analyze_skew("TEST") == {}

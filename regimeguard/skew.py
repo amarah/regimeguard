@@ -31,11 +31,25 @@ def analyze_skew(ticker: str) -> dict:
         chain = tk.option_chain(expiry)
     except Exception:
         return {}
-    puts, calls = chain.puts, chain.calls
+    try:
+        puts, calls = chain.puts, chain.calls
+    except (AttributeError, TypeError):
+        return {}
 
     def iv_near_moneyness(df, side):
+        required = {"strike", "impliedVolatility"}
+        if not isinstance(df, pd.DataFrame) or not required.issubset(df.columns):
+            return None
+        values = df.loc[:, ["strike", "impliedVolatility"]].apply(
+            pd.to_numeric, errors="coerce"
+        ).dropna()
+        values = values[
+            values["strike"].map(isfinite)
+            & values["impliedVolatility"].map(isfinite)
+        ]
         target = spot * (0.93 if side == "put" else 1.07)
-        sub = df[df["strike"] < target] if side == "put" else df[df["strike"] > target]
+        sub = (values[values["strike"] < target] if side == "put"
+               else values[values["strike"] > target])
         if sub.empty:
             return None
         idx = (sub["strike"] - target).abs().idxmin()
