@@ -1,10 +1,17 @@
 """Redundant exposure detection via correlation clustering."""
 import itertools
+from math import isfinite
 
 from .data import get_prices
 
 
 def correlation_clusters(tickers: list[str], threshold: float = 0.75):
+    if isinstance(threshold, bool) or not isinstance(threshold, (int, float)):
+        raise ValueError("Correlation threshold must be a number from 0 to 1.")
+    if not isfinite(threshold) or not 0 <= threshold <= 1:
+        raise ValueError("Correlation threshold must be between 0 and 1.")
+    if not tickers:
+        raise ValueError("At least one ticker is required for correlation clustering.")
     corr = get_prices(tickers, period="2y").pct_change(fill_method=None).dropna().corr()
     parent = {t: t for t in corr.columns}
 
