@@ -102,3 +102,27 @@ def test_chain_without_sides_has_no_verdict(monkeypatch):
     monkeypatch.setattr(skew.yf, "Ticker", lambda _: ticker)
 
     assert skew.analyze_skew("TEST") == {}
+
+
+def test_malformed_expiries_are_skipped(monkeypatch):
+    valid_expiry = (pd.Timestamp.now().normalize()
+                    + pd.Timedelta(days=30)).strftime("%Y-%m-%d")
+    chain = SimpleNamespace(
+        puts=pd.DataFrame({"strike": [92.0], "impliedVolatility": [0.30]}),
+        calls=pd.DataFrame({"strike": [108.0], "impliedVolatility": [0.20]}),
+    )
+    ticker = SimpleNamespace(
+        fast_info={"last_price": 100.0},
+        options=[None, "not-a-date", valid_expiry],
+        option_chain=lambda expiry: chain if expiry == valid_expiry else None,
+    )
+    monkeypatch.setattr(skew.yf, "Ticker", lambda _: ticker)
+
+    assert skew.analyze_skew("TEST")["expiry"] == valid_expiry
+
+
+def test_noniterable_expiries_have_no_verdict(monkeypatch):
+    ticker = SimpleNamespace(fast_info={"last_price": 100.0}, options=None)
+    monkeypatch.setattr(skew.yf, "Ticker", lambda _: ticker)
+
+    assert skew.analyze_skew("TEST") == {}

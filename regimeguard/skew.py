@@ -22,8 +22,18 @@ def analyze_skew(ticker: str) -> dict:
         expiries = tk.options
     except Exception:
         return {}
-    expiry = next((e for e in expiries
-                   if 20 <= (pd.Timestamp(e).normalize() - today).days <= 45), None)
+    expiry = None
+    try:
+        for candidate in expiries:
+            try:
+                dte = (pd.Timestamp(candidate).normalize() - today).days
+            except (AttributeError, TypeError, ValueError, OverflowError):
+                continue
+            if 20 <= dte <= 45:
+                expiry = candidate
+                break
+    except TypeError:
+        return {}
     if not expiry:
         return {}
 
