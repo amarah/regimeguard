@@ -1,4 +1,6 @@
 """Data fetching with local parquet caching to avoid rate limits."""
+import hashlib
+import json
 import os
 import time
 import tempfile
@@ -9,11 +11,21 @@ import yfinance as yf
 from .config import CACHE_DIR
 
 
+def _cache_path(tickers: list[str], period: str) -> str:
+    """Build a stable filename without ambiguous separators or path input."""
+    identity = json.dumps(
+        {"period": period, "tickers": sorted(tickers)},
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20]
+    return os.path.join(CACHE_DIR, f"prices_{digest}.parquet")
+
+
 def get_prices(tickers: list[str], period: str = "5y") -> pd.DataFrame:
     """Download adjusted closes, cached for 12 hours on disk."""
     os.makedirs(CACHE_DIR, exist_ok=True)
-    key = "_".join(sorted(tickers)) + f"_{period}"
-    path = os.path.join(CACHE_DIR, f"{key}.parquet")
+    path = _cache_path(tickers, period)
 
     if os.path.exists(path):
         age = time.time() - os.path.getmtime(path)

@@ -13,7 +13,7 @@ from regimeguard import data
 @pytest.mark.parametrize('existing', [False, True])
 def test_failed_write_preserves_previous_cache(monkeypatch, tmp_path, existing):
     monkeypatch.setattr(data, 'CACHE_DIR', str(tmp_path))
-    path = tmp_path / 'AAPL_5y.parquet'
+    path = Path(data._cache_path(['AAPL'], '5y'))
     old = pd.DataFrame({'AAPL': [90.]})
     if existing:
         old.to_parquet(path)
@@ -39,7 +39,7 @@ def test_failed_write_preserves_previous_cache(monkeypatch, tmp_path, existing):
 
 def test_complete_cache_is_published_only_after_serialization(monkeypatch, tmp_path):
     monkeypatch.setattr(data, 'CACHE_DIR', str(tmp_path))
-    path = tmp_path / 'AAPL_5y.parquet'
+    path = Path(data._cache_path(['AAPL'], '5y'))
     fresh = pd.DataFrame({'AAPL': [100., 101.]})
     monkeypatch.setattr(data.yf, 'download', Mock(return_value=pd.concat({'Close': fresh}, axis=1)))
     original_write = pd.DataFrame.to_parquet

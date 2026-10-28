@@ -1,6 +1,7 @@
 """Exercise the real Parquet cache using synthetic prices."""
 import os
 import time
+from pathlib import Path
 from unittest.mock import Mock
 
 import pandas as pd
@@ -33,14 +34,14 @@ def test_download_and_cache_hit_return_same_rows(monkeypatch, cache):
 
 
 def test_existing_cache_with_empty_rows_is_cleaned(monkeypatch, cache):
-    prices().to_parquet(cache / 'AAPL_MSFT_5y.parquet')
+    prices().to_parquet(data._cache_path(['AAPL', 'MSFT'], '5y'))
     download = Mock(side_effect=AssertionError('fresh cache should avoid downloads'))
     monkeypatch.setattr(data.yf, 'download', download)
     pd.testing.assert_frame_equal(data.get_prices(['AAPL', 'MSFT']), prices().dropna(how='all'), check_freq=False)
 
 
 def test_corrupt_fresh_cache_is_replaced(monkeypatch, cache):
-    path = cache / 'AAPL_MSFT_5y.parquet'
+    path = Path(data._cache_path(['AAPL', 'MSFT'], '5y'))
     path.write_bytes(b'not a parquet file')
     fresh = prices() * 2
     download = Mock(return_value=pd.concat({'Close': fresh}, axis=1))
@@ -54,7 +55,7 @@ def test_corrupt_fresh_cache_is_replaced(monkeypatch, cache):
 
 
 def test_stale_cache_downloads_replacement(monkeypatch, cache):
-    path = cache / 'AAPL_MSFT_5y.parquet'
+    path = Path(data._cache_path(['AAPL', 'MSFT'], '5y'))
     prices().to_parquet(path)
     stale = time.time() - 13 * 3600
     os.utime(path, (stale, stale))
@@ -75,7 +76,7 @@ def test_single_ticker_series_is_named_and_cached(monkeypatch, cache):
 
 @pytest.mark.parametrize('age', [12 * 3600, -60])
 def test_expiry_boundary_and_future_timestamp_refresh(monkeypatch, cache, age):
-    path = cache / 'AAPL_MSFT_5y.parquet'
+    path = Path(data._cache_path(['AAPL', 'MSFT'], '5y'))
     prices().to_parquet(path)
     modified = path.stat().st_mtime
     monkeypatch.setattr(data.time, 'time', lambda: modified + age)
@@ -83,3 +84,25 @@ def test_expiry_boundary_and_future_timestamp_refresh(monkeypatch, cache, age):
     monkeypatch.setattr(data.yf, 'download', download)
     data.get_prices(['AAPL', 'MSFT'])
     download.assert_called_once()
+
+
+def test_ambiguous_symbol_sets_use_separate_cache_files(monkeypatch, cache):
+    first = pd.DataFrame({'BRK': [10.], 'B': [20.]})
+    second = pd.DataFrame({'BRK_B': [30.]})
+
+    def download(tickers, **_kwargs):
+        frame = first if tickers == ['BRK', 'B'] else second
+        return pd.concat({'Close': frame}, axis=1)
+
+    fetch = Mock(side_effect=download)
+    monkeypatch.setattr(data.yf, 'download', fetch)
+
+    pd.testing.assert_frame_equal(data.get_prices(['BRK', 'B']), first)
+    pd.testing.assert_frame_equal(data.get_prices(['BRK_B']), second)
+    assert fetch.call_count == 2
+    assert data._cache_path(['BRK', 'B'], '5y') != data._cache_path(['BRK_B'], '5y')
+
+
+def test_cache_identity_cannot_escape_cache_directory(monkeypatch, cache):
+    path = Path(data._cache_path(['A/B'], '../5y'))
+    assert path.parent == cache
