@@ -24,6 +24,12 @@ def _cache_path(tickers: list[str], period: str) -> str:
 
 def get_prices(tickers: list[str], period: str = "5y") -> pd.DataFrame:
     """Download adjusted closes, cached for 12 hours on disk."""
+    if not isinstance(tickers, list) or not tickers:
+        raise ValueError("Provide at least one ticker.")
+    if any(not isinstance(ticker, str) or not ticker.strip() for ticker in tickers):
+        raise ValueError("Tickers must be nonempty strings.")
+    if not isinstance(period, str) or not period.strip():
+        raise ValueError("Period must be a nonempty string.")
     os.makedirs(CACHE_DIR, exist_ok=True)
     path = _cache_path(tickers, period)
 
