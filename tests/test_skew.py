@@ -27,10 +27,19 @@ def test_invalid_iv_has_no_verdict(monkeypatch, side, value):
     assert skew.analyze_skew("TEST") == {}
 
 
-@pytest.mark.parametrize("spot", [float("nan"), float("inf"), -100.0, 0.0])
+@pytest.mark.parametrize(
+    "spot",
+    [float("nan"), float("inf"), -100.0, 0.0, "missing", object()],
+)
 def test_invalid_spot_has_no_verdict(monkeypatch, spot):
     fake_ticker(monkeypatch, spot=spot)
     assert skew.analyze_skew("TEST") == {}
+
+
+def test_numeric_provider_spot_is_normalized(monkeypatch):
+    fake_ticker(monkeypatch, spot="100.0")
+
+    assert skew.analyze_skew("TEST")["skew"] == 0.10
 
 
 def test_valid_skew_is_preserved(monkeypatch):

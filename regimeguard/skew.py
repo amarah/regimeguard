@@ -15,7 +15,11 @@ def analyze_skew(ticker: str) -> dict:
         spot = tk.fast_info.get("last_price")
     except Exception:
         return {}
-    if spot is None or not isfinite(spot) or spot <= 0:
+    try:
+        spot = float(spot)
+    except (TypeError, ValueError, OverflowError):
+        return {}
+    if not isfinite(spot) or spot <= 0:
         return {}
     today = pd.Timestamp.now().normalize()
     try:
