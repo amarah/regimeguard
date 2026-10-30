@@ -12,7 +12,12 @@ def correlation_clusters(tickers: list[str], threshold: float = 0.75):
         raise ValueError("Correlation threshold must be between 0 and 1.")
     if not tickers:
         raise ValueError("At least one ticker is required for correlation clustering.")
-    corr = get_prices(tickers, period="2y").pct_change(fill_method=None).dropna().corr()
+    returns = get_prices(tickers, period="2y").pct_change(fill_method=None).dropna()
+    if len(returns) < 2:
+        raise ValueError(
+            "Correlation clustering needs at least two aligned return observations."
+        )
+    corr = returns.corr()
     parent = {t: t for t in corr.columns}
 
     def find(x):
