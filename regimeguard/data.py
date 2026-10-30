@@ -43,9 +43,19 @@ def get_prices(tickers: list[str], period: str = "5y") -> pd.DataFrame:
             if not cached.empty:
                 return cached
 
-    df = yf.download(tickers, period=period, auto_adjust=True, progress=False)["Close"]
+    downloaded = yf.download(tickers, period=period, auto_adjust=True, progress=False)
+    try:
+        df = downloaded["Close"]
+    except (KeyError, TypeError):
+        raise ValueError(
+            "No price data returned; the download was not cached. Try again later."
+        ) from None
     if isinstance(df, pd.Series):
         df = df.to_frame(tickers[0])
+    elif not isinstance(df, pd.DataFrame):
+        raise ValueError(
+            "No price data returned; the download was not cached. Try again later."
+        )
     df = df.dropna(how="all")
     if df.empty:
         raise ValueError("No price data returned; the download was not cached. Try again later.")
