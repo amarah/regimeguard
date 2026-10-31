@@ -20,20 +20,7 @@ from regimeguard.options import (optimize_hedge, print_hedge_report,
                                  build_put_spreads, print_spread_report)
 from regimeguard.skew import print_skew_report
 from regimeguard.backtest import run_backtest, print_backtest_report
-
-
-def normalize_tickers(tickers: list[str]) -> list[str]:
-    """Canonicalize symbols and keep the first occurrence of each."""
-    normalized = []
-    seen = set()
-    for ticker in tickers:
-        symbol = ticker.strip().upper()
-        if not symbol:
-            raise ValueError("Ticker symbols cannot be blank.")
-        if symbol not in seen:
-            seen.add(symbol)
-            normalized.append(symbol)
-    return normalized
+from regimeguard.symbols import normalize_tickers
 
 
 def main():

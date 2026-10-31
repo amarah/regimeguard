@@ -9,18 +9,25 @@ from regimeguard.sizing import size_positions
 from regimeguard.risk import monte_carlo_cvar
 from regimeguard.stress import run_stress_tests
 from regimeguard.clusters import correlation_clusters
+from regimeguard.symbols import normalize_tickers
 
 st.set_page_config(page_title="RegimeGuard", page_icon="🧭", layout="wide")
 st.title("🧭 RegimeGuard — Market Regime & Risk Engine")
 
 with st.sidebar:
-    tickers = st.text_input("Tickers", value="AAPL MSFT NVDA TLT GLD").split()
+    ticker_input = st.text_input("Tickers", value="AAPL MSFT NVDA TLT GLD")
     capital = st.number_input("Capital ($)", value=50_000, step=1_000)
     sims = st.slider("MC simulations", 5_000, 50_000, 20_000, step=5_000)
     run_btn = st.button("▶ Run Analysis", type="primary", use_container_width=True)
 
 if not run_btn:
     st.info("Configure your portfolio in the sidebar and hit ▶ Run Analysis.")
+    st.stop()
+
+try:
+    tickers = normalize_tickers(ticker_input.split())
+except ValueError as error:
+    st.error(str(error))
     st.stop()
 
 
