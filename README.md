@@ -38,6 +38,7 @@ regimeguard/
 │   ├── clusters.py
 │   ├── options.py
 │   ├── skew.py
+│   ├── symbols.py
 │   ├── backtest.py
 │   └── alerts.py
 ├── app.py
@@ -46,7 +47,7 @@ regimeguard/
 │   ├── daily-regime.yml
 │   └── ci.yml
 ├── tests/
-│   └── test_risk.py
+│   └── test_*.py
 ├── requirements.txt
 ├── Dockerfile
 ├── .gitignore
@@ -112,8 +113,9 @@ requests and network failures raise an error instead of appearing as sent.
 Transport failures raise `AlertDeliveryError` with the channel name, without
 including the credential-bearing request URL or the original exception chain
 in standard tracebacks. Avoid logging exception locals or request objects.
-Delivery stops at the first error; retries and independent channel delivery
-are not implemented.
+Each configured channel is attempted independently, so a Discord failure does
+not block Telegram or vice versa. If every configured delivery fails, the run
+raises `AlertDeliveryError`. Requests are not retried.
 
 ## How the engine works
 
@@ -174,10 +176,11 @@ Install the development dependencies from `requirements.txt`, then run:
 python -m pytest tests/ -v
 ```
 
-The tests cover risk calculations, alert delivery, and price caching. HTTP
-requests and market-data downloads are replaced with test doubles, so tests
-do not send notifications or contact Yahoo Finance. Cache tests use temporary
-Parquet files.
+The tests cover risk calculations, regime availability, correlation and stress
+data gaps, option and skew boundaries, alert delivery, CLI normalization, and
+price caching. HTTP requests and market-data downloads are replaced with test
+doubles, so tests do not send notifications or contact Yahoo Finance. Cache
+tests use temporary Parquet files.
 
 ## Data and operational notes
 
