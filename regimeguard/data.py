@@ -30,6 +30,7 @@ def get_prices(tickers: list[str], period: str = "5y") -> pd.DataFrame:
         raise ValueError("Tickers must be nonempty strings.")
     if not isinstance(period, str) or not period.strip():
         raise ValueError("Period must be a nonempty string.")
+    tickers = list(dict.fromkeys(tickers))
     os.makedirs(CACHE_DIR, exist_ok=True)
     path = _cache_path(tickers, period)
 
