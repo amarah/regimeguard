@@ -24,7 +24,11 @@ def monte_carlo_cvar(weights: dict[str, float], horizon_days: int = 10,
     if np.isclose(supplied_weights.sum(), 0):
         raise ValueError("Portfolio weights must have a nonzero net total.")
     tickers = list(weights.keys())
-    rets = get_prices(tickers, period="3y").pct_change(fill_method=None).dropna()
+    prices = get_prices(tickers, period="3y")
+    missing = [ticker for ticker in tickers if ticker not in prices.columns]
+    if missing:
+        raise ValueError(f"Missing price data for: {', '.join(missing)}.")
+    rets = prices.pct_change(fill_method=None).dropna()
     if len(rets) < 2:
         raise ValueError("Risk estimation needs at least two aligned return observations.")
     mu, cov = rets.mean().values, rets.cov().values

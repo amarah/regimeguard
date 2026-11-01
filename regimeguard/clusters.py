@@ -12,7 +12,11 @@ def correlation_clusters(tickers: list[str], threshold: float = 0.75):
         raise ValueError("Correlation threshold must be between 0 and 1.")
     if not tickers:
         raise ValueError("At least one ticker is required for correlation clustering.")
-    returns = get_prices(tickers, period="2y").pct_change(fill_method=None).dropna()
+    prices = get_prices(tickers, period="2y")
+    missing = [ticker for ticker in tickers if ticker not in prices.columns]
+    if missing:
+        raise ValueError(f"Missing price data for: {', '.join(missing)}.")
+    returns = prices.pct_change(fill_method=None).dropna()
     if len(returns) < 2:
         raise ValueError(
             "Correlation clustering needs at least two aligned return observations."
