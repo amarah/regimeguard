@@ -29,7 +29,14 @@ MULTIPLIERS = {"RISK-ON": 1.0, "CHOPPY": 0.6, "RISK-OFF": 0.25}
 
 
 def detect_regime(period: str = "5y") -> tuple[pd.DataFrame, RegimeState]:
-    spy = get_prices(["SPY"], period)["SPY"]
+    prices = get_prices(["SPY"], period)
+    if "SPY" not in prices.columns:
+        raise ValueError("Regime detection needs SPY price data.")
+    spy = pd.to_numeric(prices["SPY"], errors="coerce")
+    invalid = prices["SPY"].notna() & spy.isna()
+    observed = spy.dropna()
+    if invalid.any() or not np.isfinite(observed).all() or (observed <= 0).any():
+        raise ValueError("SPY prices must contain positive finite values.")
     rets = spy.pct_change(fill_method=None)
     vol = rets.rolling(21).std() * np.sqrt(TRADING_DAYS)
     mom = spy.pct_change(63, fill_method=None)

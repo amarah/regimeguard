@@ -7,6 +7,31 @@ import pytest
 from regimeguard import regimes
 
 
+def test_missing_spy_column_fails_before_model_fit(monkeypatch):
+    monkeypatch.setattr(regimes, 'get_prices', lambda *args: pd.DataFrame({'QQQ': [100.0]}))
+    model = Mock(side_effect=AssertionError('model must not be constructed'))
+    monkeypatch.setattr(regimes, 'HAS_HMM', False)
+    monkeypatch.setattr(regimes, 'GaussianMixture', model)
+
+    with pytest.raises(ValueError, match='needs SPY price data'):
+        regimes.detect_regime()
+
+
+@pytest.mark.parametrize('bad_price', [0, -1, np.inf, 'missing'])
+def test_invalid_spy_prices_fail_before_model_fit(monkeypatch, bad_price):
+    prices = pd.DataFrame({'SPY': np.arange(100) + 100.0})
+    if isinstance(bad_price, str):
+        prices = prices.astype(object)
+    prices.loc[50, 'SPY'] = bad_price
+    monkeypatch.setattr(regimes, 'get_prices', lambda *args: prices)
+    model = Mock(side_effect=AssertionError('model must not be constructed'))
+    monkeypatch.setattr(regimes, 'HAS_HMM', False)
+    monkeypatch.setattr(regimes, 'GaussianMixture', model)
+
+    with pytest.raises(ValueError, match='positive finite'):
+        regimes.detect_regime()
+
+
 @pytest.mark.parametrize('days', [0, 63, 65])
 def test_short_history_fails_before_model_fit(monkeypatch, days):
     prices = pd.DataFrame({'SPY': np.arange(days) + 100.0})
