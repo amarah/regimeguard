@@ -54,6 +54,34 @@ def test_corrupt_fresh_cache_is_replaced(monkeypatch, cache):
     download.assert_called_once()
 
 
+def test_incomplete_fresh_cache_is_replaced(monkeypatch, cache):
+    path = Path(data._cache_path(['AAPL', 'MSFT'], '5y'))
+    prices()[['AAPL']].to_parquet(path)
+    fresh = prices() * 2
+    download = Mock(return_value=pd.concat({'Close': fresh}, axis=1))
+    monkeypatch.setattr(data.yf, 'download', download)
+
+    result = data.get_prices(['AAPL', 'MSFT'])
+
+    pd.testing.assert_frame_equal(result, fresh.dropna(how='all'), check_freq=False)
+    pd.testing.assert_frame_equal(pd.read_parquet(path), result, check_freq=False)
+    download.assert_called_once()
+
+
+def test_incomplete_download_is_not_cached(monkeypatch, cache):
+    partial = prices()[['AAPL']]
+    monkeypatch.setattr(
+        data.yf,
+        'download',
+        Mock(return_value=pd.concat({'Close': partial}, axis=1)),
+    )
+
+    with pytest.raises(ValueError, match='Missing price data for: MSFT'):
+        data.get_prices(['AAPL', 'MSFT'])
+
+    assert not Path(data._cache_path(['AAPL', 'MSFT'], '5y')).exists()
+
+
 def test_stale_cache_downloads_replacement(monkeypatch, cache):
     path = Path(data._cache_path(['AAPL', 'MSFT'], '5y'))
     prices().to_parquet(path)

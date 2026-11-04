@@ -41,7 +41,7 @@ def get_prices(tickers: list[str], period: str = "5y") -> pd.DataFrame:
                 cached = pd.read_parquet(path).dropna(how="all")
             except (OSError, ValueError):
                 cached = pd.DataFrame()
-            if not cached.empty:
+            if not cached.empty and all(ticker in cached.columns for ticker in tickers):
                 return cached
 
     downloaded = yf.download(tickers, period=period, auto_adjust=True, progress=False)
@@ -60,6 +60,11 @@ def get_prices(tickers: list[str], period: str = "5y") -> pd.DataFrame:
     df = df.dropna(how="all")
     if df.empty:
         raise ValueError("No price data returned; the download was not cached. Try again later.")
+    missing = [ticker for ticker in tickers if ticker not in df.columns]
+    if missing:
+        raise ValueError(
+            f"Missing price data for: {', '.join(missing)}; the incomplete download was not cached."
+        )
     # Publish only a complete Parquet file. A same-directory replacement is
     # atomic, so readers keep seeing the old cache until serialization succeeds.
     fd, temporary = tempfile.mkstemp(prefix=".prices-", suffix=".parquet", dir=CACHE_DIR)
