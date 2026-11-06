@@ -82,6 +82,38 @@ def test_incomplete_download_is_not_cached(monkeypatch, cache):
     assert not Path(data._cache_path(['AAPL', 'MSFT'], '5y')).exists()
 
 
+@pytest.mark.parametrize('bad_price', [0, -1, float('inf')])
+def test_invalid_fresh_cache_is_replaced(monkeypatch, cache, bad_price):
+    path = Path(data._cache_path(['AAPL', 'MSFT'], '5y'))
+    cached = prices().astype(object)
+    cached.loc[cached.index[0], 'AAPL'] = bad_price
+    cached.to_parquet(path)
+    fresh = prices() * 2
+    download = Mock(return_value=pd.concat({'Close': fresh}, axis=1))
+    monkeypatch.setattr(data.yf, 'download', download)
+
+    result = data.get_prices(['AAPL', 'MSFT'])
+
+    pd.testing.assert_frame_equal(result, fresh.dropna(how='all'), check_freq=False)
+    download.assert_called_once()
+
+
+@pytest.mark.parametrize('bad_price', [0, -1, float('inf'), 'missing'])
+def test_invalid_download_is_not_cached(monkeypatch, cache, bad_price):
+    downloaded = prices().astype(object)
+    downloaded.loc[downloaded.index[0], 'AAPL'] = bad_price
+    monkeypatch.setattr(
+        data.yf,
+        'download',
+        Mock(return_value=pd.concat({'Close': downloaded}, axis=1)),
+    )
+
+    with pytest.raises(ValueError, match='positive finite values'):
+        data.get_prices(['AAPL', 'MSFT'])
+
+    assert not Path(data._cache_path(['AAPL', 'MSFT'], '5y')).exists()
+
+
 def test_stale_cache_downloads_replacement(monkeypatch, cache):
     path = Path(data._cache_path(['AAPL', 'MSFT'], '5y'))
     prices().to_parquet(path)

@@ -5,10 +5,23 @@ import os
 import time
 import tempfile
 
+import numpy as np
 import pandas as pd
 import yfinance as yf
 
 from .config import CACHE_DIR
+
+
+def _prices_are_valid(frame: pd.DataFrame, tickers: list[str]) -> bool:
+    """Return whether observed adjusted closes are numeric, finite, and positive."""
+    for ticker in tickers:
+        original = frame[ticker]
+        numeric = pd.to_numeric(original, errors="coerce")
+        invalid_text = original.notna() & numeric.isna()
+        observed = numeric.dropna()
+        if invalid_text.any() or not np.isfinite(observed).all() or (observed <= 0).any():
+            return False
+    return True
 
 
 def _cache_path(tickers: list[str], period: str) -> str:
@@ -41,7 +54,9 @@ def get_prices(tickers: list[str], period: str = "5y") -> pd.DataFrame:
                 cached = pd.read_parquet(path).dropna(how="all")
             except (OSError, ValueError):
                 cached = pd.DataFrame()
-            if not cached.empty and all(ticker in cached.columns for ticker in tickers):
+            if (not cached.empty
+                    and all(ticker in cached.columns for ticker in tickers)
+                    and _prices_are_valid(cached, tickers)):
                 return cached
 
     downloaded = yf.download(tickers, period=period, auto_adjust=True, progress=False)
@@ -64,6 +79,10 @@ def get_prices(tickers: list[str], period: str = "5y") -> pd.DataFrame:
     if missing:
         raise ValueError(
             f"Missing price data for: {', '.join(missing)}; the incomplete download was not cached."
+        )
+    if not _prices_are_valid(df, tickers):
+        raise ValueError(
+            "Price data must contain positive finite values; the invalid download was not cached."
         )
     # Publish only a complete Parquet file. A same-directory replacement is
     # atomic, so readers keep seeing the old cache until serialization succeeds.
