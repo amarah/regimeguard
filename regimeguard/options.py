@@ -7,6 +7,7 @@ All use real option chains via yfinance.
 """
 
 from dataclasses import dataclass
+from math import isfinite
 
 import numpy as np
 import pandas as pd
@@ -43,18 +44,44 @@ def black_scholes_put(S: float, K: float, T: float, r: float = 0.04,
     return max(K * np.exp(-r * T) * _norm_cdf(-d2) - S * _norm_cdf(-d1), 0)
 
 
+def _days_to_expiry(expiry: str, today: pd.Timestamp | None = None) -> int:
+    """Count calendar days without letting the current clock time remove a day."""
+    reference = pd.Timestamp.now().normalize() if today is None else today.normalize()
+    return (pd.Timestamp(expiry).normalize() - reference).days
+
+
 def fetch_put_chain(ticker: str, min_dte: int = 20, max_dte: int = 60) -> pd.DataFrame:
     tk = yf.Ticker(ticker)
     try:
         spot = tk.fast_info.get("last_price") or tk.history(period="1d")["Close"].iloc[-1]
     except Exception:
         return pd.DataFrame()
+    try:
+        spot = float(spot)
+    except (TypeError, ValueError, OverflowError):
+        return pd.DataFrame()
+    if not isfinite(spot) or spot <= 0:
+        return pd.DataFrame()
+    try:
+        expiries = tk.options
+    except Exception:
+        return pd.DataFrame()
     rows = []
-    for expiry in tk.options:
-        dte = (pd.Timestamp(expiry) - pd.Timestamp.now()).days
+    for expiry in expiries:
+        try:
+            dte = _days_to_expiry(expiry)
+        except (TypeError, ValueError, OverflowError):
+            continue
         if not (min_dte <= dte <= max_dte):
             continue
-        chain = tk.option_chain(expiry).puts
+        try:
+            chain = tk.option_chain(expiry).puts
+        except Exception:
+            continue
+        if not isinstance(chain, pd.DataFrame) or "strike" not in chain.columns:
+            continue
+        chain = chain.copy()
+        chain["strike"] = pd.to_numeric(chain["strike"], errors="coerce")
         otm = chain[(chain["strike"] >= spot * 0.80) &
                     (chain["strike"] <= spot * 0.995)].copy()
         otm["expiry"], otm["dte"], otm["spot"] = expiry, dte, spot
