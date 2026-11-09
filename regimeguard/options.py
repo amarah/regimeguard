@@ -35,13 +35,30 @@ def _norm_cdf(x: float) -> float:
 def black_scholes_put(S: float, K: float, T: float, r: float = 0.04,
                       sigma: float = 0.25) -> float:
     """Theoretical put price — sanity-checks market quotes."""
-    if T <= 0 or S <= 0 or sigma < 0:
+    try:
+        S, K, T, r, sigma = (float(value) for value in (S, K, T, r, sigma))
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError("Put model inputs must be finite numbers.") from None
+    if not all(isfinite(value) for value in (S, K, T, r, sigma)):
+        raise ValueError("Put model inputs must be finite numbers.")
+    if S <= 0 or K <= 0:
+        raise ValueError("Spot and strike must be positive.")
+    if T < 0 or sigma < 0:
+        raise ValueError("Time and volatility cannot be negative.")
+    if T == 0:
         return max(K - S, 0)
+    with np.errstate(over="ignore", invalid="ignore"):
+        discounted_strike = K * np.exp(-r * T)
+    if not isfinite(discounted_strike):
+        raise ValueError("Put model inputs produce a value outside the supported range.")
     if sigma == 0:
-        return max(K * np.exp(-r * T) - S, 0)
+        return max(discounted_strike - S, 0)
     d1 = (np.log(S / K) + (r + sigma**2 / 2) * T) / (sigma * np.sqrt(T))
     d2 = d1 - sigma * np.sqrt(T)
-    return max(K * np.exp(-r * T) * _norm_cdf(-d2) - S * _norm_cdf(-d1), 0)
+    price = max(discounted_strike * _norm_cdf(-d2) - S * _norm_cdf(-d1), 0)
+    if not isfinite(price):
+        raise ValueError("Put model inputs produce a value outside the supported range.")
+    return price
 
 
 def _days_to_expiry(expiry: str, today: pd.Timestamp | None = None) -> int:
