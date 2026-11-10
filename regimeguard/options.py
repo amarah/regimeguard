@@ -182,14 +182,48 @@ def optimize_collar(tickers: list[str], position_values: dict[str, float],
             spot = tk.fast_info.get("last_price")
         except Exception:
             continue
-        if not spot:
+        try:
+            spot = float(spot)
+        except (TypeError, ValueError, OverflowError):
             continue
-        expiry = next((e for e in tk.options if 30 <= (pd.Timestamp(e) - pd.Timestamp.now()).days <= 60), None)
+        if not isfinite(spot) or spot <= 0:
+            continue
+        try:
+            expiries = tk.options
+        except Exception:
+            continue
+        expiry = None
+        for candidate in expiries or []:
+            try:
+                dte = _days_to_expiry(candidate)
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if 30 <= dte <= 60:
+                expiry = candidate
+                break
         if not expiry:
             continue
-        dte = (pd.Timestamp(expiry) - pd.Timestamp.now()).days
-        puts = tk.option_chain(expiry).puts
-        calls = tk.option_chain(expiry).calls
+        dte = _days_to_expiry(expiry)
+        try:
+            option_chain = tk.option_chain(expiry)
+            puts, calls = option_chain.puts, option_chain.calls
+        except Exception:
+            continue
+        if (not isinstance(puts, pd.DataFrame)
+                or not {"strike", "ask"}.issubset(puts.columns)
+                or not isinstance(calls, pd.DataFrame)
+                or not {"strike", "bid"}.issubset(calls.columns)):
+            continue
+        puts = puts.loc[:, ["strike", "ask"]].apply(pd.to_numeric, errors="coerce")
+        calls = calls.loc[:, ["strike", "bid"]].apply(pd.to_numeric, errors="coerce")
+        puts = puts[
+            puts["strike"].map(isfinite) & puts["ask"].map(isfinite)
+            & (puts["strike"] > 0) & (puts["ask"] > 0)
+        ]
+        calls = calls[
+            calls["strike"].map(isfinite) & calls["bid"].map(isfinite)
+            & (calls["strike"] > 0) & (calls["bid"] > 0)
+        ]
 
         cand_puts = puts[(puts["strike"] >= spot * (1 + min_floor)) &
                          (puts["strike"] <= spot * 0.92)]
@@ -197,8 +231,6 @@ def optimize_collar(tickers: list[str], position_values: dict[str, float],
                            (calls["strike"] < spot * 1.25)]
 
         for _, p in cand_puts.iterrows():
-            if p["lastPrice"] <= 0:
-                continue
             best_call, best_diff = None, float("inf")
             for _, c in cand_calls.iterrows():
                 diff = abs(c["bid"] - p["ask"])
