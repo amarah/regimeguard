@@ -48,3 +48,31 @@ def test_invalid_spot_and_expiry_list_return_no_candidates(monkeypatch):
 
     monkeypatch.setattr(options.yf, "Ticker", lambda _: BrokenTicker())
     assert options.fetch_put_chain("TEST").empty
+
+
+def test_malformed_quotes_are_excluded_from_put_candidates(monkeypatch):
+    expiry = (pd.Timestamp.now().normalize()
+              + pd.Timedelta(days=30)).strftime("%Y-%m-%d")
+    quotes = pd.DataFrame({
+        "strike": [90, 91, "missing", 93, 94],
+        "lastPrice": [2.0, "missing", 1.0, float("inf"), 0.0],
+    })
+    monkeypatch.setattr(options.yf, "Ticker", lambda _: SimpleNamespace(
+        fast_info={"last_price": 100}, options=[expiry],
+        option_chain=lambda _: SimpleNamespace(puts=quotes)))
+
+    result = options.fetch_put_chain("TEST")
+
+    assert result["strike"].tolist() == [90.0]
+    assert result["lastPrice"].tolist() == [2.0]
+
+
+def test_chain_without_last_price_is_skipped(monkeypatch):
+    expiry = (pd.Timestamp.now().normalize()
+              + pd.Timedelta(days=30)).strftime("%Y-%m-%d")
+    monkeypatch.setattr(options.yf, "Ticker", lambda _: SimpleNamespace(
+        fast_info={"last_price": 100}, options=[expiry],
+        option_chain=lambda _: SimpleNamespace(
+            puts=pd.DataFrame({"strike": [90]}))))
+
+    assert options.fetch_put_chain("TEST").empty

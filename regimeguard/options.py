@@ -95,10 +95,18 @@ def fetch_put_chain(ticker: str, min_dte: int = 20, max_dte: int = 60) -> pd.Dat
             chain = tk.option_chain(expiry).puts
         except Exception:
             continue
-        if not isinstance(chain, pd.DataFrame) or "strike" not in chain.columns:
+        required = {"strike", "lastPrice"}
+        if not isinstance(chain, pd.DataFrame) or not required.issubset(chain.columns):
             continue
         chain = chain.copy()
-        chain["strike"] = pd.to_numeric(chain["strike"], errors="coerce")
+        chain[["strike", "lastPrice"]] = chain[["strike", "lastPrice"]].apply(
+            pd.to_numeric, errors="coerce"
+        )
+        chain = chain[
+            chain["strike"].map(isfinite)
+            & chain["lastPrice"].map(isfinite)
+            & (chain["lastPrice"] > 0)
+        ]
         otm = chain[(chain["strike"] >= spot * 0.80) &
                     (chain["strike"] <= spot * 0.995)].copy()
         otm["expiry"], otm["dte"], otm["spot"] = expiry, dte, spot
