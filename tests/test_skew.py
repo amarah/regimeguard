@@ -135,3 +135,27 @@ def test_noniterable_expiries_have_no_verdict(monkeypatch):
     monkeypatch.setattr(skew.yf, "Ticker", lambda _: ticker)
 
     assert skew.analyze_skew("TEST") == {}
+
+
+def test_expiry_nearest_thirty_days_is_selected(monkeypatch):
+    today = pd.Timestamp.now().normalize()
+    expiries = [
+        (today + pd.Timedelta(days=20)).strftime("%Y-%m-%d"),
+        (today + pd.Timedelta(days=33)).strftime("%Y-%m-%d"),
+        (today + pd.Timedelta(days=27)).strftime("%Y-%m-%d"),
+    ]
+    requested = []
+    chain = SimpleNamespace(
+        puts=pd.DataFrame({"strike": [92.0], "impliedVolatility": [0.30]}),
+        calls=pd.DataFrame({"strike": [108.0], "impliedVolatility": [0.20]}),
+    )
+    ticker = SimpleNamespace(
+        fast_info={"last_price": 100.0}, options=expiries,
+        option_chain=lambda expiry: requested.append(expiry) or chain,
+    )
+    monkeypatch.setattr(skew.yf, "Ticker", lambda _: ticker)
+
+    result = skew.analyze_skew("TEST")
+
+    assert result["expiry"] == expiries[2]
+    assert requested == [expiries[2]]

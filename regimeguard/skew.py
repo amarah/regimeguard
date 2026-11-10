@@ -26,7 +26,7 @@ def analyze_skew(ticker: str) -> dict:
         expiries = tk.options
     except Exception:
         return {}
-    expiry = None
+    candidates = []
     try:
         for candidate in expiries:
             try:
@@ -34,12 +34,12 @@ def analyze_skew(ticker: str) -> dict:
             except (AttributeError, TypeError, ValueError, OverflowError):
                 continue
             if 20 <= dte <= 45:
-                expiry = candidate
-                break
+                candidates.append((abs(dte - 30), dte, candidate))
     except TypeError:
         return {}
-    if not expiry:
+    if not candidates:
         return {}
+    _, _, expiry = min(candidates)
 
     try:
         chain = tk.option_chain(expiry)
