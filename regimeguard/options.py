@@ -285,12 +285,44 @@ def build_put_spreads(tickers: list[str], position_values: dict[str, float],
             spot = tk.fast_info.get("last_price")
         except Exception:
             continue
-        if not spot:
+        try:
+            spot = float(spot)
+        except (TypeError, ValueError, OverflowError):
             continue
-        expiry = next((e for e in tk.options if 30 <= (pd.Timestamp(e) - pd.Timestamp.now()).days <= 60), None)
+        if not isfinite(spot) or spot <= 0:
+            continue
+        try:
+            expiries = tk.options
+        except Exception:
+            continue
+        expiry = None
+        for candidate in expiries or []:
+            try:
+                dte = _days_to_expiry(candidate)
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if 30 <= dte <= 60:
+                expiry = candidate
+                break
         if not expiry:
             continue
-        chain = tk.option_chain(expiry).puts.set_index("strike")
+        try:
+            puts = tk.option_chain(expiry).puts
+        except Exception:
+            continue
+        if (not isinstance(puts, pd.DataFrame)
+                or not {"strike", "ask", "bid"}.issubset(puts.columns)):
+            continue
+        puts = puts.loc[:, ["strike", "ask", "bid"]].apply(
+            pd.to_numeric, errors="coerce"
+        )
+        puts = puts[
+            puts["strike"].map(isfinite)
+            & puts["ask"].map(isfinite)
+            & puts["bid"].map(isfinite)
+            & (puts[["strike", "ask", "bid"]] > 0).all(axis=1)
+        ]
+        chain = puts.groupby("strike").agg(ask=("ask", "min"), bid=("bid", "max"))
 
         for w in width_targets:
             long_k = round(spot * 0.95 / 0.5) * 0.5
