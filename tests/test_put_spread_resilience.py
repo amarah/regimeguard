@@ -73,3 +73,20 @@ def test_put_spread_uses_expiry_nearest_thirty_days(monkeypatch):
 
     assert selected == [_expiry(31)]
     assert result.loc[0, "expiry"] == _expiry(31)
+
+
+def test_put_spread_uses_nearest_listed_strikes(monkeypatch):
+    puts = pd.DataFrame({
+        "strike": [96, 89],
+        "ask": [3.0, 1.2],
+        "bid": [2.5, 1.0],
+    })
+    monkeypatch.setattr(options.yf, "Ticker", lambda _: SimpleNamespace(
+        fast_info={"last_price": 100}, options=[_expiry()],
+        option_chain=lambda _: SimpleNamespace(puts=puts)))
+
+    result = options.build_put_spreads(
+        ["TEST"], {"TEST": 10_000}, width_targets=(0.05, 0.10))
+
+    assert result["spread"].tolist() == ["96/89P"]
+    assert result.loc[0, "width_pct"] == round(7 / 96, 4)

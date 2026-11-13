@@ -323,12 +323,24 @@ def build_put_spreads(tickers: list[str], position_values: dict[str, float],
             & (puts[["strike", "ask", "bid"]] > 0).all(axis=1)
         ]
         chain = puts.groupby("strike").agg(ask=("ask", "min"), bid=("bid", "max"))
+        available_strikes = chain.index.tolist()
+        long_candidates = [strike for strike in available_strikes if strike < spot]
+        if not long_candidates:
+            continue
+        long_target = spot * 0.95
+        long_k = min(long_candidates, key=lambda strike: (abs(strike - long_target), strike))
+        selected_spreads = set()
 
         for w in width_targets:
-            long_k = round(spot * 0.95 / 0.5) * 0.5
-            short_k = round(long_k * (1 - w) / 0.5) * 0.5
-            if long_k not in chain.index or short_k not in chain.index:
+            short_target = long_k * (1 - w)
+            short_candidates = [strike for strike in available_strikes if strike < long_k]
+            if not short_candidates:
                 continue
+            short_k = min(short_candidates,
+                          key=lambda strike: (abs(strike - short_target), strike))
+            if (long_k, short_k) in selected_spreads:
+                continue
+            selected_spreads.add((long_k, short_k))
             debit = chain.loc[long_k, "ask"] - chain.loc[short_k, "bid"]
             if debit <= 0:
                 continue
@@ -337,7 +349,8 @@ def build_put_spreads(tickers: list[str], position_values: dict[str, float],
             rows.append({
                 "ticker": t, "expiry": expiry,
                 "spread": f"{long_k:.0f}/{short_k:.0f}P",
-                "width_pct": w, "debit": round(debit, 2),
+                "width_pct": round((long_k - short_k) / long_k, 4),
+                "debit": round(debit, 2),
                 "max_gain_ps": round(max_profit, 2),
                 "roi_on_debit": round(max_profit / debit, 2),
                 "total_cost": round(debit * 100 * contracts, 2),
