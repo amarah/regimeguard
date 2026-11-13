@@ -112,17 +112,17 @@ def fetch_put_chain(ticker: str, min_dte: int = 20, max_dte: int = 60) -> pd.Dat
             chain = tk.option_chain(expiry).puts
         except Exception:
             continue
-        required = {"strike", "lastPrice"}
+        required = {"strike", "ask"}
         if not isinstance(chain, pd.DataFrame) or not required.issubset(chain.columns):
             continue
         chain = chain.copy()
-        chain[["strike", "lastPrice"]] = chain[["strike", "lastPrice"]].apply(
+        chain[["strike", "ask"]] = chain[["strike", "ask"]].apply(
             pd.to_numeric, errors="coerce"
         )
         chain = chain[
             chain["strike"].map(isfinite)
-            & chain["lastPrice"].map(isfinite)
-            & (chain["lastPrice"] > 0)
+            & chain["ask"].map(isfinite)
+            & (chain["ask"] > 0)
         ]
         otm = chain[(chain["strike"] >= spot * 0.80) &
                     (chain["strike"] <= spot * 0.995)].copy()
@@ -146,7 +146,7 @@ def optimize_hedge(tickers: list[str], position_values: dict[str, float],
             print(f"⚠ No suitable put chain found for {t}")
             continue
         for _, row in chain.iterrows():
-            strike, prem, spot = row["strike"], row["lastPrice"], row["spot"]
+            strike, prem, spot = row["strike"], row["ask"], row["spot"]
             if prem <= 0 or np.isnan(prem):
                 continue
             contracts_needed = int(pos_val // (strike * 100)) or 1
