@@ -342,7 +342,7 @@ def build_put_spreads(tickers: list[str], position_values: dict[str, float],
                 "roi_on_debit": round(max_profit / debit, 2),
                 "total_cost": round(debit * 100 * contracts, 2),
                 "contracts": contracts,
-                "protection_if_below_short_k": f"{max(w, (long_k-short_k-debit)/spot):.1%}"})
+                "protection_if_below_short_k": f"{max_profit / spot:.1%}"})
     return pd.DataFrame(rows)
 
 

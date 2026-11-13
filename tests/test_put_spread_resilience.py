@@ -25,6 +25,8 @@ def test_duplicate_strikes_use_best_available_quotes(monkeypatch):
 
     assert result.loc[0, "spread"] == "95/90P"
     assert result.loc[0, "debit"] == 1.9
+    assert result.loc[0, "max_gain_ps"] == 3.1
+    assert result.loc[0, "protection_if_below_short_k"] == "3.1%"
 
 
 def test_malformed_put_spread_quotes_are_ignored(monkeypatch):
