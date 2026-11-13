@@ -54,3 +54,22 @@ def test_put_spread_provider_failure_returns_no_candidates(monkeypatch):
     monkeypatch.setattr(options.yf, "Ticker", lambda _: BrokenTicker())
 
     assert options.build_put_spreads(["TEST"], {"TEST": 10_000}).empty
+
+
+def test_put_spread_uses_expiry_nearest_thirty_days(monkeypatch):
+    selected = []
+    puts = pd.DataFrame({
+        "strike": [95, 90],
+        "ask": [3.0, 1.2],
+        "bid": [2.5, 1.1],
+    })
+    expiries = [_expiry(55), _expiry(40), _expiry(31)]
+    monkeypatch.setattr(options.yf, "Ticker", lambda _: SimpleNamespace(
+        fast_info={"last_price": 100}, options=expiries,
+        option_chain=lambda expiry: selected.append(expiry) or SimpleNamespace(puts=puts)))
+
+    result = options.build_put_spreads(
+        ["TEST"], {"TEST": 10_000}, width_targets=(0.05,))
+
+    assert selected == [_expiry(31)]
+    assert result.loc[0, "expiry"] == _expiry(31)

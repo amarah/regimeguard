@@ -67,6 +67,23 @@ def _days_to_expiry(expiry: str, today: pd.Timestamp | None = None) -> int:
     return (pd.Timestamp(expiry).normalize() - reference).days
 
 
+def _nearest_expiry(expiries, min_dte: int = 30, max_dte: int = 60,
+                    target_dte: int = 30) -> tuple[str | None, int | None]:
+    """Choose the valid expiry nearest the target regardless of provider order."""
+    candidates = []
+    for expiry in expiries or []:
+        try:
+            dte = _days_to_expiry(expiry)
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if min_dte <= dte <= max_dte:
+            candidates.append((abs(dte - target_dte), dte, str(expiry), expiry))
+    if not candidates:
+        return None, None
+    _, dte, _, expiry = min(candidates)
+    return expiry, dte
+
+
 def fetch_put_chain(ticker: str, min_dte: int = 20, max_dte: int = 60) -> pd.DataFrame:
     tk = yf.Ticker(ticker)
     try:
@@ -192,18 +209,9 @@ def optimize_collar(tickers: list[str], position_values: dict[str, float],
             expiries = tk.options
         except Exception:
             continue
-        expiry = None
-        for candidate in expiries or []:
-            try:
-                dte = _days_to_expiry(candidate)
-            except (TypeError, ValueError, OverflowError):
-                continue
-            if 30 <= dte <= 60:
-                expiry = candidate
-                break
+        expiry, dte = _nearest_expiry(expiries)
         if not expiry:
             continue
-        dte = _days_to_expiry(expiry)
         try:
             option_chain = tk.option_chain(expiry)
             puts, calls = option_chain.puts, option_chain.calls
@@ -295,15 +303,7 @@ def build_put_spreads(tickers: list[str], position_values: dict[str, float],
             expiries = tk.options
         except Exception:
             continue
-        expiry = None
-        for candidate in expiries or []:
-            try:
-                dte = _days_to_expiry(candidate)
-            except (TypeError, ValueError, OverflowError):
-                continue
-            if 30 <= dte <= 60:
-                expiry = candidate
-                break
+        expiry, _ = _nearest_expiry(expiries)
         if not expiry:
             continue
         try:
