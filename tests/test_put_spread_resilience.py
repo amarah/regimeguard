@@ -90,3 +90,17 @@ def test_put_spread_uses_nearest_listed_strikes(monkeypatch):
 
     assert result["spread"].tolist() == ["96/89P"]
     assert result.loc[0, "width_pct"] == round(7 / 96, 4)
+
+
+def test_put_spread_rejects_debit_above_maximum_payout(monkeypatch):
+    puts = pd.DataFrame({
+        "strike": [95, 90],
+        "ask": [7.0, 1.5],
+        "bid": [6.5, 1.0],
+    })
+    monkeypatch.setattr(options.yf, "Ticker", lambda _: SimpleNamespace(
+        fast_info={"last_price": 100}, options=[_expiry()],
+        option_chain=lambda _: SimpleNamespace(puts=puts)))
+
+    assert options.build_put_spreads(
+        ["TEST"], {"TEST": 10_000}, width_targets=(0.05,)).empty

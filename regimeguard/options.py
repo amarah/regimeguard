@@ -345,6 +345,8 @@ def build_put_spreads(tickers: list[str], position_values: dict[str, float],
             if debit <= 0:
                 continue
             max_profit = (long_k - short_k) - debit
+            if max_profit <= 0:
+                continue
             contracts = max(int(pos_val // (long_k * 100)), 1)
             rows.append({
                 "ticker": t, "expiry": expiry,
