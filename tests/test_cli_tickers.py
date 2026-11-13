@@ -17,3 +17,9 @@ def test_blank_ticker_is_rejected():
 def test_empty_ticker_list_is_rejected():
     with pytest.raises(ValueError, match="At least one"):
         normalize_tickers([])
+
+
+@pytest.mark.parametrize("ticker", [None, 123, True, object()])
+def test_non_string_ticker_is_rejected_cleanly(ticker):
+    with pytest.raises(ValueError, match="must be strings"):
+        normalize_tickers(["AAPL", ticker])

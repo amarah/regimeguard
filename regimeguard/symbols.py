@@ -8,6 +8,8 @@ def normalize_tickers(tickers: list[str]) -> list[str]:
     normalized = []
     seen = set()
     for ticker in tickers:
+        if not isinstance(ticker, str):
+            raise ValueError("Ticker symbols must be strings.")
         symbol = ticker.strip().upper()
         if not symbol:
             raise ValueError("Ticker symbols cannot be blank.")
