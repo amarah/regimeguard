@@ -4,6 +4,7 @@ import pandas as pd
 
 from .config import MAX_POSITION_WEIGHT, PORTFOLIO_VOL_TARGET, TRADING_DAYS
 from .data import get_prices
+from .symbols import normalize_tickers
 
 
 def kelly_fraction(win_rate: float, payoff: float, fraction: float = 0.5) -> float:
@@ -24,6 +25,19 @@ def estimate_trade_stats(rets: pd.Series, lookback: int = 126):
 
 def size_positions(tickers: list[str], capital: float,
                    regime_mult: float) -> pd.DataFrame:
+    try:
+        capital = float(capital)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError("Capital must be a positive finite number.") from None
+    if not np.isfinite(capital) or capital <= 0:
+        raise ValueError("Capital must be a positive finite number.")
+    try:
+        regime_mult = float(regime_mult)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError("Regime multiplier must be a nonnegative finite number.") from None
+    if not np.isfinite(regime_mult) or regime_mult < 0:
+        raise ValueError("Regime multiplier must be a nonnegative finite number.")
+    tickers = normalize_tickers(tickers)
     prices = get_prices(tickers, period="2y")
     rows = []
     for t in tickers:
