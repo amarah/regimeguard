@@ -41,10 +41,14 @@ def size_positions(tickers: list[str], capital: float,
     prices = get_prices(tickers, period="2y")
     rows = []
     for t in tickers:
-        px = prices[t].dropna()
+        series = prices[t]
+        px = series.dropna()
         if px.empty:
             continue
-        rets = px.pct_change().dropna()
+        # A return is usable only when both adjacent trading-day quotes exist.
+        # Dropping prices first would compress gaps and treat a multi-day move
+        # as a one-day observation, overstating volatility and trade frequency.
+        rets = series.pct_change(fill_method=None).dropna()
         wr, blr = estimate_trade_stats(rets)
         weight = kelly_fraction(wr, blr) * regime_mult
         vol = float(rets.std() * np.sqrt(TRADING_DAYS))

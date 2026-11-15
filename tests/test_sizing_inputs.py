@@ -42,3 +42,27 @@ def test_direct_api_normalizes_and_deduplicates_tickers(monkeypatch):
 
     download.assert_called_once_with(["AAPL"], period="2y")
     assert result["ticker"].tolist() == ["AAPL"]
+
+
+def test_missing_quotes_do_not_create_multi_day_daily_returns(monkeypatch):
+    import regimeguard.sizing as sizing
+
+    index = pd.bdate_range("2026-01-05", periods=6)
+    prices = pd.DataFrame({
+        "AAPL": [100.0, 101.0, None, 110.0, 111.0, 112.0],
+    }, index=index)
+    captured = {}
+
+    def trade_stats(returns, lookback=126):
+        captured["returns"] = returns
+        return 0.5, 1.0
+
+    monkeypatch.setattr(sizing, "get_prices", lambda *args, **kwargs: prices)
+    monkeypatch.setattr(sizing, "estimate_trade_stats", trade_stats)
+
+    sizing.size_positions(["AAPL"], 10_000, 1.0)
+
+    expected = prices["AAPL"].pct_change(fill_method=None).dropna()
+    pd.testing.assert_series_equal(captured["returns"], expected)
+    assert index[2] not in captured["returns"].index
+    assert index[3] not in captured["returns"].index
