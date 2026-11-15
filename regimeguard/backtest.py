@@ -29,8 +29,10 @@ def run_backtest(tickers: list[str], capital: float = 100_000,
         CACHE_DIR, f"bt_{'_'.join(sorted(tickers))}_{period}.pkl")
     os.makedirs(CACHE_DIR, exist_ok=True)
 
-    prices = get_prices(tickers + ["SPY"], period=period)
-    rets = prices[tickers].pct_change().dropna()
+    requested = list(dict.fromkeys(tickers + ["SPY"]))
+    prices = get_prices(requested, period=period)
+    aligned_rets = prices[requested].pct_change(fill_method=None).dropna()
+    rets = aligned_rets[tickers]
 
     if use_cached and os.path.exists(cache_path):
         with open(cache_path, "rb") as f:
@@ -46,7 +48,7 @@ def run_backtest(tickers: list[str], capital: float = 100_000,
 
     month_ends = set(rets.groupby([rets.index.year, rets.index.month]).tail(1).index)
     daily_hedge_drag = hedge_drag_annual / TRADING_DAYS
-    spy_rets = prices["SPY"].pct_change().reindex(rets.index)
+    spy_rets = aligned_rets["SPY"]
 
     curves = {"strategy": [], "spy": [], "equal_weight_bh": []}
 
