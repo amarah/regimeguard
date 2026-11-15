@@ -67,7 +67,9 @@ def test_mc_cvar_rejects_invalid_confidence(alpha):
 @pytest.mark.parametrize("kwargs, message", [
     ({"weights": {}}, "At least one"),
     ({"weights": {"AAPL": float("nan")}}, "finite"),
-    ({"weights": {"AAPL": 1.0, "MSFT": -1.0}}, "nonzero net"),
+    ({"weights": {"AAPL": -1.0}}, "nonnegative"),
+    ({"weights": {"AAPL": 1.0, "MSFT": -0.5}}, "nonnegative"),
+    ({"weights": {"AAPL": 0.0}}, "nonzero net"),
     ({"weights": {"AAPL": 1.0}, "horizon_days": 0}, "horizon_days"),
     ({"weights": {"AAPL": 1.0}, "horizon_days": 2.5}, "horizon_days"),
     ({"weights": {"AAPL": 1.0}, "sims": 0}, "sims"),

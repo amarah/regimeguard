@@ -21,6 +21,8 @@ def monte_carlo_cvar(weights: dict[str, float], horizon_days: int = 10,
         raise ValueError("Portfolio weights must be finite numbers.") from None
     if not np.isfinite(supplied_weights).all():
         raise ValueError("Portfolio weights must be finite numbers.")
+    if (supplied_weights < 0).any():
+        raise ValueError("Portfolio weights must be nonnegative.")
     if np.isclose(supplied_weights.sum(), 0):
         raise ValueError("Portfolio weights must have a nonzero net total.")
     tickers = list(weights.keys())
