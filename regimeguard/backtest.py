@@ -5,6 +5,7 @@ optional hedge drag. Benchmarks: equal-weight B&H and SPY.
 Note: uses full-history regime fit (fast); strict walk-forward refitting
 is a roadmap item.
 """
+import hashlib
 import os
 import pickle
 
@@ -14,6 +15,7 @@ import pandas as pd
 from .config import TRADING_DAYS, CACHE_DIR
 from .data import get_prices
 from .regimes import detect_regime
+from .symbols import normalize_tickers
 
 
 def _fit_regime_series(spy_rets: pd.Series) -> pd.Series:
@@ -22,11 +24,33 @@ def _fit_regime_series(spy_rets: pd.Series) -> pd.Series:
     return state.history.map(mult_map)
 
 
+def _backtest_cache_path(tickers: list[str], period: str) -> str:
+    identity = "\0".join([*sorted(tickers), period])
+    digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20]
+    return os.path.join(CACHE_DIR, f"backtest_{digest}.pkl")
+
+
 def run_backtest(tickers: list[str], capital: float = 100_000,
                  period: str = "10y", hedge_drag_annual: float = 0.015,
                  use_cached: bool = True) -> dict:
-    cache_path = os.path.join(
-        CACHE_DIR, f"bt_{'_'.join(sorted(tickers))}_{period}.pkl")
+    tickers = normalize_tickers(tickers)
+    try:
+        capital = float(capital)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError("Capital must be a positive finite number.") from None
+    if isinstance(capital, bool) or not np.isfinite(capital) or capital <= 0:
+        raise ValueError("Capital must be a positive finite number.")
+    try:
+        hedge_drag_annual = float(hedge_drag_annual)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError("Annual hedge drag must be a nonnegative finite number.") from None
+    if not np.isfinite(hedge_drag_annual) or hedge_drag_annual < 0:
+        raise ValueError("Annual hedge drag must be a nonnegative finite number.")
+    if not isinstance(period, str) or not period.strip():
+        raise ValueError("Period must be a nonempty string.")
+    period = period.strip()
+
+    cache_path = _backtest_cache_path(tickers, period)
     os.makedirs(CACHE_DIR, exist_ok=True)
 
     requested = list(dict.fromkeys(tickers + ["SPY"]))
