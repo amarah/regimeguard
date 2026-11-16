@@ -55,7 +55,12 @@ def run_backtest(tickers: list[str], capital: float = 100_000,
 
     requested = list(dict.fromkeys(tickers + ["SPY"]))
     prices = get_prices(requested, period=period)
+    missing = [ticker for ticker in requested if ticker not in prices.columns]
+    if missing:
+        raise ValueError(f"Missing price data for: {', '.join(missing)}.")
     aligned_rets = prices[requested].pct_change(fill_method=None).dropna()
+    if len(aligned_rets) < 2:
+        raise ValueError("Backtesting needs at least two aligned return observations.")
     rets = aligned_rets[tickers]
 
     if use_cached and os.path.exists(cache_path):
