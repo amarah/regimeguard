@@ -16,8 +16,9 @@ def kelly_fraction(win_rate: float, payoff: float, fraction: float = 0.5) -> flo
 def estimate_trade_stats(rets: pd.Series, lookback: int = 126):
     r = rets.iloc[-lookback:].dropna()
     wins = r[r > 0]
-    losses = r[r <= 0]
-    wr = len(wins) / len(r) if len(r) else 0.5
+    losses = r[r < 0]
+    decided = len(wins) + len(losses)
+    wr = len(wins) / decided if decided else 0.5
     avg_win = wins.mean() if len(wins) else 0.01
     avg_loss = abs(losses.mean()) if len(losses) else 0.01
     return wr, avg_win / max(avg_loss, 1e-9)
