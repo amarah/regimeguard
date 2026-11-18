@@ -32,7 +32,10 @@ def run_stress_tests(weights: dict[str, float]) -> pd.DataFrame:
                 continue
             port_ret = (rets[tickers] * numeric_weights).sum(axis=1)
             total = (1 + port_ret).prod() - 1
-            equity = (1 + port_ret).cumprod()
+            equity = pd.concat([
+                pd.Series([1.0], index=[window.index[0]]),
+                (1 + port_ret).cumprod(),
+            ])
             max_dd = ((equity - equity.cummax()) / equity.cummax()).min()
             spy_total = (1 + rets["SPY"].fillna(0)).prod() - 1
             rows.append({
