@@ -50,6 +50,8 @@ def size_positions(tickers: list[str], capital: float,
         # Dropping prices first would compress gaps and treat a multi-day move
         # as a one-day observation, overstating volatility and trade frequency.
         rets = series.pct_change(fill_method=None).dropna()
+        if len(rets) < 2:
+            continue
         wr, blr = estimate_trade_stats(rets)
         weight = kelly_fraction(wr, blr) * regime_mult
         vol = float(rets.std() * np.sqrt(TRADING_DAYS))

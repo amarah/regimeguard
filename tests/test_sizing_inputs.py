@@ -66,3 +66,21 @@ def test_missing_quotes_do_not_create_multi_day_daily_returns(monkeypatch):
     pd.testing.assert_series_equal(captured["returns"], expected)
     assert index[2] not in captured["returns"].index
     assert index[3] not in captured["returns"].index
+
+
+@pytest.mark.parametrize(
+    "prices",
+    [
+        pd.DataFrame({"AAPL": [100.0]}),
+        pd.DataFrame({"AAPL": [100.0, 101.0]}),
+        pd.DataFrame({"AAPL": [100.0, None, 101.0]}),
+    ],
+)
+def test_tickers_without_enough_returns_are_skipped(monkeypatch, prices):
+    import regimeguard.sizing as sizing
+
+    monkeypatch.setattr(sizing, "get_prices", lambda *args, **kwargs: prices)
+
+    result = sizing.size_positions(["AAPL"], 10_000, 1.0)
+
+    assert result.empty
