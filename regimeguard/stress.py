@@ -18,6 +18,9 @@ def run_stress_tests(weights: dict[str, float]) -> pd.DataFrame:
     tickers = list(weights.keys())
     requested = tickers if "SPY" in weights else tickers + ["SPY"]
     prices = get_prices(requested, period="max")
+    missing = [ticker for ticker in requested if ticker not in prices.columns]
+    if missing:
+        raise ValueError(f"Missing price data for: {', '.join(missing)}.")
     rows = []
     for name, (start, end) in STRESS_EVENTS.items():
         try:
