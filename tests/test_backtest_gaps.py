@@ -1,4 +1,6 @@
 """Backtests must not turn unavailable quotes into flat trading days."""
+from unittest.mock import Mock
+
 import pandas as pd
 
 
@@ -27,3 +29,28 @@ def test_missing_quotes_are_excluded_from_all_backtest_series(monkeypatch, tmp_p
     assert index[4] not in curve.index
     assert curve.index.equals(index[[1, 2, 5, 6, 7]])
     assert curve.notna().all().all()
+
+
+def test_direct_api_normalizes_and_deduplicates_tickers(monkeypatch, tmp_path):
+    import regimeguard.backtest as backtest
+
+    index = pd.bdate_range("2026-01-05", periods=4)
+    prices = pd.DataFrame({
+        "AAPL": [100.0, 101.0, 102.0, 103.0],
+        "SPY": [200.0, 201.0, 202.0, 203.0],
+    }, index=index)
+    download = Mock(return_value=prices)
+    monkeypatch.setattr(backtest, "CACHE_DIR", str(tmp_path))
+    monkeypatch.setattr(backtest, "get_prices", download)
+    monkeypatch.setattr(
+        backtest,
+        "_fit_regime_series",
+        lambda _returns: pd.Series(1.0, index=index),
+    )
+
+    result = backtest.run_backtest(
+        [" aapl ", "AAPL"], hedge_drag_annual=0, use_cached=False
+    )
+
+    download.assert_called_once_with(["AAPL", "SPY"], period="10y")
+    assert not result["curve"].empty
