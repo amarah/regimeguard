@@ -1,6 +1,8 @@
 """Correlation clustering should reject settings that cannot be interpreted."""
 import math
+from unittest.mock import Mock
 
+import pandas as pd
 import pytest
 
 from regimeguard import clusters
@@ -19,6 +21,17 @@ def test_nonnumeric_threshold_is_rejected(threshold):
 
 
 def test_empty_ticker_list_is_rejected():
-    with pytest.raises(ValueError, match="At least one ticker"):
+    with pytest.raises(ValueError, match="At least one ticker symbol"):
         clusters.correlation_clusters([])
+
+
+def test_direct_api_normalizes_and_deduplicates_tickers(monkeypatch):
+    prices = pd.DataFrame({"AAPL": [100.0, 101.0, 102.0]})
+    download = Mock(return_value=prices)
+    monkeypatch.setattr(clusters, "get_prices", download)
+
+    result = clusters.correlation_clusters([" aapl ", "AAPL"])
+
+    download.assert_called_once_with(["AAPL"], period="2y")
+    assert result == [["AAPL"]]
 

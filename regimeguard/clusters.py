@@ -3,6 +3,7 @@ import itertools
 from math import isfinite
 
 from .data import get_prices
+from .symbols import normalize_tickers
 
 
 def correlation_clusters(tickers: list[str], threshold: float = 0.75):
@@ -10,8 +11,7 @@ def correlation_clusters(tickers: list[str], threshold: float = 0.75):
         raise ValueError("Correlation threshold must be a number from 0 to 1.")
     if not isfinite(threshold) or not 0 <= threshold <= 1:
         raise ValueError("Correlation threshold must be between 0 and 1.")
-    if not tickers:
-        raise ValueError("At least one ticker is required for correlation clustering.")
+    tickers = normalize_tickers(tickers)
     prices = get_prices(tickers, period="2y")
     missing = [ticker for ticker in tickers if ticker not in prices.columns]
     if missing:
