@@ -4,6 +4,28 @@ from unittest.mock import Mock
 import pandas as pd
 import pytest
 
+from regimeguard.sizing import kelly_fraction
+
+
+@pytest.mark.parametrize(
+    "win_rate", [-0.01, 1.01, float("nan"), float("inf"), True]
+)
+def test_kelly_rejects_invalid_win_rate(win_rate):
+    with pytest.raises(ValueError, match="Win rate"):
+        kelly_fraction(win_rate, 2.0)
+
+
+@pytest.mark.parametrize("payoff", [0, -1, float("nan"), float("inf"), "2"])
+def test_kelly_rejects_invalid_payoff(payoff):
+    with pytest.raises(ValueError, match="Payoff"):
+        kelly_fraction(0.6, payoff)
+
+
+@pytest.mark.parametrize("fraction", [-0.01, 1.01, float("nan"), True])
+def test_kelly_rejects_invalid_fraction(fraction):
+    with pytest.raises(ValueError, match="Kelly fraction"):
+        kelly_fraction(0.6, 2.0, fraction)
+
 
 @pytest.mark.parametrize("capital", [0, -1, float("nan"), float("inf"), "bad"])
 def test_invalid_capital_is_rejected_before_download(monkeypatch, capital):

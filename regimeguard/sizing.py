@@ -1,4 +1,6 @@
 """Fractional Kelly position sizing with volatility targeting."""
+from numbers import Real
+
 import numpy as np
 import pandas as pd
 
@@ -8,6 +10,21 @@ from .symbols import normalize_tickers
 
 
 def kelly_fraction(win_rate: float, payoff: float, fraction: float = 0.5) -> float:
+    values = {
+        "Win rate": win_rate,
+        "Payoff": payoff,
+        "Kelly fraction": fraction,
+    }
+    for label, value in values.items():
+        if (isinstance(value, bool) or not isinstance(value, Real)
+                or not np.isfinite(value)):
+            raise ValueError(f"{label} must be a finite number.")
+    if not 0 <= win_rate <= 1:
+        raise ValueError("Win rate must be between 0 and 1.")
+    if payoff <= 0:
+        raise ValueError("Payoff must be positive.")
+    if not 0 <= fraction <= 1:
+        raise ValueError("Kelly fraction must be between 0 and 1.")
     b = max(payoff, 1e-9)
     f = win_rate - (1 - win_rate) / b
     return float(np.clip(fraction * f, 0.0, 0.5))
