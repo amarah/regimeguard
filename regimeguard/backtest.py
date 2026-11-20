@@ -5,6 +5,7 @@ optional hedge drag. Benchmarks: equal-weight B&H and SPY.
 Note: uses full-history regime fit (fast); strict walk-forward refitting
 is a roadmap item.
 """
+import hashlib
 import os
 import pickle
 
@@ -23,17 +24,43 @@ def _fit_regime_series(spy_rets: pd.Series) -> pd.Series:
     return state.history.map(mult_map)
 
 
+def _backtest_cache_path(tickers: list[str], period: str) -> str:
+    identity = "\0".join([*sorted(tickers), period])
+    digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20]
+    return os.path.join(CACHE_DIR, f"backtest_{digest}.pkl")
+
+
 def run_backtest(tickers: list[str], capital: float = 100_000,
                  period: str = "10y", hedge_drag_annual: float = 0.015,
                  use_cached: bool = True) -> dict:
     tickers = normalize_tickers(tickers)
-    cache_path = os.path.join(
-        CACHE_DIR, f"bt_{'_'.join(sorted(tickers))}_{period}.pkl")
+    try:
+        capital = float(capital)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError("Capital must be a positive finite number.") from None
+    if isinstance(capital, bool) or not np.isfinite(capital) or capital <= 0:
+        raise ValueError("Capital must be a positive finite number.")
+    try:
+        hedge_drag_annual = float(hedge_drag_annual)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError("Annual hedge drag must be a nonnegative finite number.") from None
+    if not np.isfinite(hedge_drag_annual) or hedge_drag_annual < 0:
+        raise ValueError("Annual hedge drag must be a nonnegative finite number.")
+    if not isinstance(period, str) or not period.strip():
+        raise ValueError("Period must be a nonempty string.")
+    period = period.strip()
+
+    cache_path = _backtest_cache_path(tickers, period)
     os.makedirs(CACHE_DIR, exist_ok=True)
 
     requested = list(dict.fromkeys(tickers + ["SPY"]))
     prices = get_prices(requested, period=period)
+    missing = [ticker for ticker in requested if ticker not in prices.columns]
+    if missing:
+        raise ValueError(f"Missing price data for: {', '.join(missing)}.")
     aligned_rets = prices[requested].pct_change(fill_method=None).dropna()
+    if len(aligned_rets) < 2:
+        raise ValueError("Backtesting needs at least two aligned return observations.")
     rets = aligned_rets[tickers]
 
     if use_cached and os.path.exists(cache_path):
