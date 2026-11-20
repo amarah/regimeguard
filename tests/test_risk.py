@@ -1,4 +1,6 @@
 """Offline unit tests — no network required."""
+from unittest.mock import Mock
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -120,6 +122,22 @@ def test_mc_cvar_does_not_fill_missing_prices(monkeypatch):
     result = risk_mod.monte_carlo_cvar({"AAPL": 0.5, "MSFT": 0.5}, sims=100)
 
     assert np.isfinite(result["VaR_95"])
+
+
+def test_mc_cvar_normalizes_and_combines_weight_symbols(monkeypatch):
+    import regimeguard.risk as risk_mod
+
+    prices = _fake_prices(("AAPL",))
+    download = Mock(return_value=prices)
+    monkeypatch.setattr(risk_mod, "get_prices", download)
+
+    combined = risk_mod.monte_carlo_cvar(
+        {" aapl ": 0.25, "AAPL": 0.75}, sims=100
+    )
+    single = risk_mod.monte_carlo_cvar({"AAPL": 1.0}, sims=100)
+
+    assert combined == single
+    assert download.call_args_list[0].args == (["AAPL"],)
 
 
 def test_correlation_clustering(monkeypatch):

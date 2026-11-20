@@ -17,3 +17,12 @@ def normalize_tickers(tickers: list[str]) -> list[str]:
             seen.add(symbol)
             normalized.append(symbol)
     return normalized
+
+
+def normalize_weight_map(weights: dict[str, float]) -> dict[str, float]:
+    """Canonicalize portfolio symbols and combine duplicate entries."""
+    normalized = {}
+    for ticker, weight in weights.items():
+        symbol = normalize_tickers([ticker])[0]
+        normalized[symbol] = normalized.get(symbol, 0.0) + weight
+    return normalized

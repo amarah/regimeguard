@@ -4,6 +4,7 @@ from numbers import Real
 import numpy as np
 
 from .data import get_prices
+from .symbols import normalize_weight_map
 
 
 def monte_carlo_cvar(weights: dict[str, float], horizon_days: int = 10,
@@ -26,6 +27,8 @@ def monte_carlo_cvar(weights: dict[str, float], horizon_days: int = 10,
         raise ValueError("Portfolio weights must be finite numbers.")
     if (supplied_weights < 0).any():
         raise ValueError("Portfolio weights must be nonnegative.")
+    weights = normalize_weight_map(dict(zip(weights, supplied_weights)))
+    supplied_weights = np.asarray(list(weights.values()))
     if np.isclose(supplied_weights.sum(), 0):
         raise ValueError("Portfolio weights must have a nonzero net total.")
     tickers = list(weights.keys())

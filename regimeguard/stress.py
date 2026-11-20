@@ -4,6 +4,7 @@ import pandas as pd
 
 from .data import get_prices
 from .config import STRESS_EVENTS
+from .symbols import normalize_weight_map
 
 
 def run_stress_tests(weights: dict[str, float]) -> pd.DataFrame:
@@ -15,6 +16,8 @@ def run_stress_tests(weights: dict[str, float]) -> pd.DataFrame:
         raise ValueError("Portfolio weights must be finite numbers.") from None
     if not np.isfinite(numeric_weights).all():
         raise ValueError("Portfolio weights must be finite numbers.")
+    weights = normalize_weight_map(numeric_weights.to_dict())
+    numeric_weights = pd.Series(weights, dtype=float)
     tickers = list(weights.keys())
     requested = tickers if "SPY" in weights else tickers + ["SPY"]
     prices = get_prices(requested, period="max")
