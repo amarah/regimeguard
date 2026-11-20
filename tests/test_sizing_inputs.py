@@ -4,7 +4,7 @@ from unittest.mock import Mock
 import pandas as pd
 import pytest
 
-from regimeguard.sizing import kelly_fraction
+from regimeguard.sizing import estimate_trade_stats, kelly_fraction
 
 
 @pytest.mark.parametrize(
@@ -25,6 +25,17 @@ def test_kelly_rejects_invalid_payoff(payoff):
 def test_kelly_rejects_invalid_fraction(fraction):
     with pytest.raises(ValueError, match="Kelly fraction"):
         kelly_fraction(0.6, 2.0, fraction)
+
+
+@pytest.mark.parametrize("lookback", [0, -1, 2.5, True])
+def test_trade_stats_rejects_invalid_lookback(lookback):
+    with pytest.raises(ValueError, match="Lookback must be a positive integer"):
+        estimate_trade_stats(pd.Series([0.01, -0.01]), lookback)
+
+
+def test_trade_stats_rejects_infinite_returns():
+    with pytest.raises(ValueError, match="finite values"):
+        estimate_trade_stats(pd.Series([0.01, float("inf")]))
 
 
 @pytest.mark.parametrize("capital", [0, -1, float("nan"), float("inf"), "bad"])

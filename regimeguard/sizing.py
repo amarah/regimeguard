@@ -31,7 +31,14 @@ def kelly_fraction(win_rate: float, payoff: float, fraction: float = 0.5) -> flo
 
 
 def estimate_trade_stats(rets: pd.Series, lookback: int = 126):
+    if (not isinstance(lookback, int) or isinstance(lookback, bool)
+            or lookback <= 0):
+        raise ValueError("Lookback must be a positive integer.")
+    if not isinstance(rets, pd.Series):
+        raise ValueError("Returns must be a pandas Series.")
     r = rets.iloc[-lookback:].dropna()
+    if not np.isfinite(r).all():
+        raise ValueError("Returns must contain only finite values or missing data.")
     wins = r[r > 0]
     losses = r[r < 0]
     decided = len(wins) + len(losses)
