@@ -56,7 +56,9 @@ def test_mc_cvar_labels_requested_confidence(monkeypatch):
     assert not {"VaR_95", "CVaR_95", "DaR_95"} & result.keys()
 
 
-@pytest.mark.parametrize("alpha", [0, 1, -0.1, 1.1])
+@pytest.mark.parametrize(
+    "alpha", [0, 1, -0.1, 1.1, float("nan"), float("inf"), None, "0.95", True]
+)
 def test_mc_cvar_rejects_invalid_confidence(alpha):
     from regimeguard.risk import monte_carlo_cvar
 

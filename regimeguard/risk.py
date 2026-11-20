@@ -1,4 +1,6 @@
 """Monte Carlo VaR/CVaR and Drawdown-at-Risk using fat-tailed Student-t."""
+from numbers import Real
+
 import numpy as np
 
 from .data import get_prices
@@ -7,7 +9,8 @@ from .data import get_prices
 def monte_carlo_cvar(weights: dict[str, float], horizon_days: int = 10,
                      sims: int = 20_000, alpha: float = 0.95,
                      student_t: bool = True) -> dict:
-    if not 0 < alpha < 1:
+    if (isinstance(alpha, bool) or not isinstance(alpha, Real)
+            or not np.isfinite(alpha) or not 0 < alpha < 1):
         raise ValueError("alpha must be between 0 and 1.")
     if not isinstance(horizon_days, int) or isinstance(horizon_days, bool) or horizon_days <= 0:
         raise ValueError("horizon_days must be a positive integer.")
