@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pandas as pd
+import pytest
 
 from regimeguard import options
 
@@ -89,3 +90,30 @@ def test_hedge_cost_uses_executable_ask_quote(monkeypatch):
 
     assert result.loc[0, "premium"] == 2.5
     assert result.loc[0, "cost_pct"] == 0.025
+
+
+@pytest.mark.parametrize("cvar_pct", [-0.01, 1.01, float("nan"), None, True])
+def test_optimize_hedge_rejects_invalid_cvar(cvar_pct, monkeypatch):
+    fetch = Mock(side_effect=AssertionError("quotes should not be fetched"))
+    monkeypatch.setattr(options, "fetch_put_chain", fetch)
+
+    with pytest.raises(ValueError, match="cvar_pct must be between 0 and 1"):
+        options.optimize_hedge(["TEST"], {"TEST": 10_000}, cvar_pct=cvar_pct)
+
+    fetch.assert_not_called()
+
+
+@pytest.mark.parametrize("top_n", [0, -1, 1.5, True])
+def test_optimize_hedge_rejects_invalid_result_limit(top_n):
+    with pytest.raises(ValueError, match="top_n must be a positive integer"):
+        options.optimize_hedge([], {}, cvar_pct=0.2, top_n=top_n)
+
+
+@pytest.mark.parametrize(
+    "target_coverage", [-0.01, 1.01, float("inf"), None, True]
+)
+def test_optimize_hedge_rejects_invalid_target_coverage(target_coverage):
+    with pytest.raises(ValueError, match="target_coverage must be between 0 and 1"):
+        options.optimize_hedge(
+            [], {}, cvar_pct=0.2, target_coverage=target_coverage
+        )

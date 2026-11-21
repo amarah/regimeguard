@@ -8,6 +8,7 @@ All use real option chains via yfinance.
 
 from dataclasses import dataclass
 from math import isfinite
+from numbers import Real
 
 import numpy as np
 import pandas as pd
@@ -136,6 +137,17 @@ def fetch_put_chain(ticker: str, min_dte: int = 20, max_dte: int = 60) -> pd.Dat
 def optimize_hedge(tickers: list[str], position_values: dict[str, float],
                    cvar_pct: float, top_n: int = 5,
                    target_coverage: float = 0.75) -> pd.DataFrame:
+    if (isinstance(cvar_pct, bool) or not isinstance(cvar_pct, Real)
+            or not isfinite(cvar_pct) or not 0 <= cvar_pct <= 1):
+        raise ValueError("cvar_pct must be between 0 and 1.")
+    if not isinstance(top_n, int) or isinstance(top_n, bool) or top_n <= 0:
+        raise ValueError("top_n must be a positive integer.")
+    if (isinstance(target_coverage, bool)
+            or not isinstance(target_coverage, Real)
+            or not isfinite(target_coverage)
+            or not 0 <= target_coverage <= 1):
+        raise ValueError("target_coverage must be between 0 and 1.")
+
     results = []
     for t in tickers:
         pos_val = position_values.get(t, 0)
