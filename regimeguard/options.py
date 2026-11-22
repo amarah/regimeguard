@@ -86,6 +86,15 @@ def _nearest_expiry(expiries, min_dte: int = 30, max_dte: int = 60,
 
 
 def fetch_put_chain(ticker: str, min_dte: int = 20, max_dte: int = 60) -> pd.DataFrame:
+    if (not isinstance(min_dte, int) or isinstance(min_dte, bool)
+            or min_dte < 0):
+        raise ValueError("min_dte must be a nonnegative integer.")
+    if (not isinstance(max_dte, int) or isinstance(max_dte, bool)
+            or max_dte < 0):
+        raise ValueError("max_dte must be a nonnegative integer.")
+    if min_dte > max_dte:
+        raise ValueError("min_dte cannot exceed max_dte.")
+
     tk = yf.Ticker(ticker)
     try:
         spot = tk.fast_info.get("last_price") or tk.history(period="1d")["Close"].iloc[-1]

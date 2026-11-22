@@ -79,6 +79,38 @@ def test_chain_without_ask_is_skipped(monkeypatch):
     assert options.fetch_put_chain("TEST").empty
 
 
+@pytest.mark.parametrize("min_dte", [-1, 2.5, "20", True])
+def test_put_chain_rejects_invalid_minimum_dte(min_dte, monkeypatch):
+    ticker = Mock(side_effect=AssertionError("provider should not be called"))
+    monkeypatch.setattr(options.yf, "Ticker", ticker)
+
+    with pytest.raises(ValueError, match="min_dte must be a nonnegative integer"):
+        options.fetch_put_chain("TEST", min_dte=min_dte)
+
+    ticker.assert_not_called()
+
+
+@pytest.mark.parametrize("max_dte", [-1, 60.5, "60", True])
+def test_put_chain_rejects_invalid_maximum_dte(max_dte, monkeypatch):
+    ticker = Mock(side_effect=AssertionError("provider should not be called"))
+    monkeypatch.setattr(options.yf, "Ticker", ticker)
+
+    with pytest.raises(ValueError, match="max_dte must be a nonnegative integer"):
+        options.fetch_put_chain("TEST", max_dte=max_dte)
+
+    ticker.assert_not_called()
+
+
+def test_put_chain_rejects_reversed_dte_range(monkeypatch):
+    ticker = Mock(side_effect=AssertionError("provider should not be called"))
+    monkeypatch.setattr(options.yf, "Ticker", ticker)
+
+    with pytest.raises(ValueError, match="min_dte cannot exceed max_dte"):
+        options.fetch_put_chain("TEST", min_dte=61, max_dte=60)
+
+    ticker.assert_not_called()
+
+
 def test_hedge_cost_uses_executable_ask_quote(monkeypatch):
     monkeypatch.setattr(options, "fetch_put_chain", lambda _: pd.DataFrame({
         "strike": [90.0], "lastPrice": [1.0], "ask": [2.5],
