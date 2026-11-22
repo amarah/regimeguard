@@ -1,6 +1,8 @@
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pandas as pd
+import pytest
 
 from regimeguard import options
 
@@ -104,3 +106,20 @@ def test_put_spread_rejects_debit_above_maximum_payout(monkeypatch):
 
     assert options.build_put_spreads(
         ["TEST"], {"TEST": 10_000}, width_targets=(0.05,)).empty
+
+
+@pytest.mark.parametrize(
+    "width_targets",
+    [(), None, "0.05", (0,), (1,), (-0.05,), (float("nan"),),
+     (float("inf"),), (True,), ("0.05",)],
+)
+def test_put_spread_rejects_invalid_width_targets(width_targets, monkeypatch):
+    ticker = Mock(side_effect=AssertionError("provider should not be called"))
+    monkeypatch.setattr(options.yf, "Ticker", ticker)
+
+    with pytest.raises(ValueError, match="values between 0 and 1"):
+        options.build_put_spreads(
+            ["TEST"], {"TEST": 10_000}, width_targets=width_targets
+        )
+
+    ticker.assert_not_called()

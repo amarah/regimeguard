@@ -312,6 +312,18 @@ def print_collar_report(df: pd.DataFrame):
 def build_put_spreads(tickers: list[str], position_values: dict[str, float],
                       width_targets: tuple = (0.05, 0.10, 0.15)) -> pd.DataFrame:
     """Bear put spreads: cheaper capped protection than naked puts."""
+    try:
+        widths = tuple(width_targets)
+    except TypeError:
+        raise ValueError(
+            "width_targets must contain values between 0 and 1."
+        ) from None
+    if (isinstance(width_targets, (str, bytes)) or not widths
+            or any(isinstance(width, bool) or not isinstance(width, Real)
+                   or not isfinite(width) or not 0 < width < 1
+                   for width in widths)):
+        raise ValueError("width_targets must contain values between 0 and 1.")
+
     rows = []
     for t in tickers:
         pos_val = position_values.get(t, 0)
@@ -360,7 +372,7 @@ def build_put_spreads(tickers: list[str], position_values: dict[str, float],
         long_k = min(long_candidates, key=lambda strike: (abs(strike - long_target), strike))
         selected_spreads = set()
 
-        for w in width_targets:
+        for w in widths:
             short_target = long_k * (1 - w)
             short_candidates = [strike for strike in available_strikes if strike < long_k]
             if not short_candidates:
