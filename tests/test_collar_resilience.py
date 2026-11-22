@@ -1,6 +1,8 @@
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pandas as pd
+import pytest
 
 from regimeguard import options
 
@@ -72,3 +74,33 @@ def test_collar_uses_expiry_nearest_thirty_days(monkeypatch):
 
     assert selected == [_expiry(31)]
     assert result.loc[0, "expiry"] == _expiry(31)
+
+
+@pytest.mark.parametrize(
+    "max_cost_pct", [float("nan"), float("inf"), None, "0.01", True]
+)
+def test_collar_rejects_invalid_cost_limit(max_cost_pct, monkeypatch):
+    ticker = Mock(side_effect=AssertionError("provider should not be called"))
+    monkeypatch.setattr(options.yf, "Ticker", ticker)
+
+    with pytest.raises(ValueError, match="max_cost_pct must be a finite number"):
+        options.optimize_collar(
+            ["TEST"], {"TEST": 10_000}, max_cost_pct=max_cost_pct
+        )
+
+    ticker.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "min_floor", [-1, 0, 0.2, float("nan"), None, "-0.2", True]
+)
+def test_collar_rejects_invalid_protection_floor(min_floor, monkeypatch):
+    ticker = Mock(side_effect=AssertionError("provider should not be called"))
+    monkeypatch.setattr(options.yf, "Ticker", ticker)
+
+    with pytest.raises(ValueError, match="min_floor must be between -1 and 0"):
+        options.optimize_collar(
+            ["TEST"], {"TEST": 10_000}, min_floor=min_floor
+        )
+
+    ticker.assert_not_called()

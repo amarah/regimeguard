@@ -210,6 +210,14 @@ def optimize_collar(tickers: list[str], position_values: dict[str, float],
                     max_cost_pct: float = 0.01,
                     min_floor: float = -0.20) -> pd.DataFrame:
     """Zero-cost collar finder: buy protective put funded by covered call."""
+    if (isinstance(max_cost_pct, bool)
+            or not isinstance(max_cost_pct, Real)
+            or not isfinite(max_cost_pct)):
+        raise ValueError("max_cost_pct must be a finite number.")
+    if (isinstance(min_floor, bool) or not isinstance(min_floor, Real)
+            or not isfinite(min_floor) or not -1 < min_floor < 0):
+        raise ValueError("min_floor must be between -1 and 0.")
+
     rows = []
     for t in tickers:
         pos_val = position_values.get(t, 0)
