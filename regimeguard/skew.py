@@ -7,7 +7,7 @@ import yfinance as yf
 
 def analyze_skew(ticker: str) -> dict:
     """
-    Compare today's ~25%-moneyness put/call IV spread.
+    Compare today's roughly 7% out-of-the-money put/call IV spread.
     Very negative skew = expensive crash insurance; unusually flat = cheap.
     """
     tk = yf.Ticker(ticker)
@@ -62,8 +62,8 @@ def analyze_skew(ticker: str) -> dict:
             & values["impliedVolatility"].map(isfinite)
         ]
         target = spot * (0.93 if side == "put" else 1.07)
-        sub = (values[values["strike"] < target] if side == "put"
-               else values[values["strike"] > target])
+        sub = (values[values["strike"] <= target] if side == "put"
+               else values[values["strike"] >= target])
         if sub.empty:
             return None
         idx = (sub["strike"] - target).abs().idxmin()

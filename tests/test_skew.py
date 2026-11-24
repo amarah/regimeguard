@@ -159,3 +159,20 @@ def test_expiry_nearest_thirty_days_is_selected(monkeypatch):
 
     assert result["expiry"] == expiries[2]
     assert requested == [expiries[2]]
+
+
+def test_quotes_exactly_at_target_strikes_are_used(monkeypatch):
+    expiry = (pd.Timestamp.now().normalize()
+              + pd.Timedelta(days=30)).strftime("%Y-%m-%d")
+    chain = SimpleNamespace(
+        puts=pd.DataFrame({"strike": [93.0], "impliedVolatility": [0.30]}),
+        calls=pd.DataFrame({"strike": [107.0], "impliedVolatility": [0.20]}),
+    )
+    ticker = SimpleNamespace(fast_info={"last_price": 100.0}, options=[expiry],
+                             option_chain=lambda _: chain)
+    monkeypatch.setattr(skew.yf, "Ticker", lambda _: ticker)
+
+    result = skew.analyze_skew("TEST")
+
+    assert result["put_iv_25d_proxy"] == 0.30
+    assert result["call_iv_25d_proxy"] == 0.20
