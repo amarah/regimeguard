@@ -1,6 +1,7 @@
 """Backtest inputs and cache keys should be safe and unambiguous."""
 from unittest.mock import Mock
 
+import pandas as pd
 import pytest
 
 
@@ -54,3 +55,25 @@ def test_cache_identity_is_unambiguous_and_stays_in_cache_directory(monkeypatch,
     assert first != second
     assert hostile.startswith(str(tmp_path))
     assert ".." not in hostile
+
+
+def test_regime_cache_is_tied_to_the_price_history(tmp_path):
+    import regimeguard.backtest as backtest
+
+    path = str(tmp_path / "regime.pkl")
+    multipliers = pd.Series([1.0, 0.6], index=pd.date_range("2026-01-01", periods=2))
+    backtest._write_regime_cache(path, "first-history", multipliers)
+
+    pd.testing.assert_series_equal(
+        backtest._load_regime_cache(path, "first-history"), multipliers
+    )
+    assert backtest._load_regime_cache(path, "changed-history") is None
+
+
+def test_corrupt_regime_cache_is_ignored(tmp_path):
+    import regimeguard.backtest as backtest
+
+    path = tmp_path / "regime.pkl"
+    path.write_bytes(b"not a pickle")
+
+    assert backtest._load_regime_cache(str(path), "history") is None

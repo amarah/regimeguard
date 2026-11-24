@@ -8,6 +8,7 @@ is a roadmap item.
 import hashlib
 import os
 import pickle
+import tempfile
 
 import numpy as np
 import pandas as pd
@@ -28,6 +29,41 @@ def _backtest_cache_path(tickers: list[str], period: str) -> str:
     identity = "\0".join([*sorted(tickers), period])
     digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20]
     return os.path.join(CACHE_DIR, f"backtest_{digest}.pkl")
+
+
+def _regime_source_digest(spy_prices: pd.Series) -> str:
+    """Identify the exact SPY history used to fit cached regime multipliers."""
+    hashed = pd.util.hash_pandas_object(spy_prices, index=True).values.tobytes()
+    return hashlib.sha256(hashed).hexdigest()
+
+
+def _load_regime_cache(path: str, source_digest: str):
+    """Return a matching cached series, or None for stale and corrupt caches."""
+    try:
+        with open(path, "rb") as cache_file:
+            payload = pickle.load(cache_file)
+    except (OSError, EOFError, pickle.PickleError, AttributeError, ValueError, TypeError):
+        return None
+    if (not isinstance(payload, dict)
+            or payload.get("source_digest") != source_digest
+            or not isinstance(payload.get("multipliers"), pd.Series)):
+        return None
+    return payload["multipliers"]
+
+
+def _write_regime_cache(path: str, source_digest: str, multipliers: pd.Series):
+    """Publish a complete cache file without exposing partial writes."""
+    fd, temporary = tempfile.mkstemp(prefix=".backtest-", suffix=".pkl",
+                                     dir=os.path.dirname(path))
+    os.close(fd)
+    try:
+        with open(temporary, "wb") as cache_file:
+            pickle.dump({"source_digest": source_digest,
+                         "multipliers": multipliers}, cache_file)
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
 
 
 def run_backtest(tickers: list[str], capital: float = 100_000,
@@ -63,14 +99,13 @@ def run_backtest(tickers: list[str], capital: float = 100_000,
         raise ValueError("Backtesting needs at least two aligned return observations.")
     rets = aligned_rets[tickers]
 
-    if use_cached and os.path.exists(cache_path):
-        with open(cache_path, "rb") as f:
-            mult = pickle.load(f)
-    else:
+    source_digest = _regime_source_digest(prices["SPY"])
+    mult = (_load_regime_cache(cache_path, source_digest)
+            if use_cached else None)
+    if mult is None:
         mult = _fit_regime_series(prices["SPY"].pct_change())
         mult = mult.reindex(rets.index).ffill()
-        with open(cache_path, "wb") as f:
-            pickle.dump(mult, f)
+        _write_regime_cache(cache_path, source_digest, mult)
 
     nav = spy_nav = bh_nav = capital
     weights = pd.Series(1 / len(tickers), index=tickers)
