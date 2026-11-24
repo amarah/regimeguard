@@ -45,3 +45,20 @@ def test_duplicate_tickers_are_removed_before_download(monkeypatch, tmp_path):
     download.assert_called_once_with(
         ["AAPL", "MSFT"], period="5y", auto_adjust=True, progress=False
     )
+
+
+def test_tickers_are_canonicalized_before_download_and_cache(monkeypatch, tmp_path):
+    prices = pd.DataFrame({"AAPL": [100.0]})
+    download = Mock(return_value=pd.concat({"Close": prices}, axis=1))
+    monkeypatch.setattr(data, "CACHE_DIR", str(tmp_path))
+    monkeypatch.setattr(data.yf, "download", download)
+
+    result = data.get_prices([" aapl ", "AAPL"])
+
+    pd.testing.assert_frame_equal(result, prices)
+    download.assert_called_once_with(
+        ["AAPL"], period="5y", auto_adjust=True, progress=False
+    )
+    assert data._cache_path(["AAPL"], "5y") in {
+        str(path) for path in tmp_path.glob("*.parquet")
+    }

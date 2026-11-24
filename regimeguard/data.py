@@ -10,6 +10,7 @@ import pandas as pd
 import yfinance as yf
 
 from .config import CACHE_DIR
+from .symbols import normalize_tickers
 
 
 def _prices_are_valid(frame: pd.DataFrame, tickers: list[str]) -> bool:
@@ -39,11 +40,9 @@ def get_prices(tickers: list[str], period: str = "5y") -> pd.DataFrame:
     """Download adjusted closes, cached for 12 hours on disk."""
     if not isinstance(tickers, list) or not tickers:
         raise ValueError("Provide at least one ticker.")
-    if any(not isinstance(ticker, str) or not ticker.strip() for ticker in tickers):
-        raise ValueError("Tickers must be nonempty strings.")
+    tickers = normalize_tickers(tickers)
     if not isinstance(period, str) or not period.strip():
         raise ValueError("Period must be a nonempty string.")
-    tickers = list(dict.fromkeys(tickers))
     os.makedirs(CACHE_DIR, exist_ok=True)
     path = _cache_path(tickers, period)
 
