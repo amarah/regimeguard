@@ -14,13 +14,14 @@ from .symbols import normalize_tickers
 
 
 def _prices_are_valid(frame: pd.DataFrame, tickers: list[str]) -> bool:
-    """Return whether observed adjusted closes are numeric, finite, and positive."""
+    """Return whether every ticker has numeric, finite, positive observations."""
     for ticker in tickers:
         original = frame[ticker]
         numeric = pd.to_numeric(original, errors="coerce")
         invalid_text = original.notna() & numeric.isna()
         observed = numeric.dropna()
-        if invalid_text.any() or not np.isfinite(observed).all() or (observed <= 0).any():
+        if (observed.empty or invalid_text.any()
+                or not np.isfinite(observed).all() or (observed <= 0).any()):
             return False
     return True
 

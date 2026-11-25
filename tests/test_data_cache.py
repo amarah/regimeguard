@@ -114,6 +114,37 @@ def test_invalid_download_is_not_cached(monkeypatch, cache, bad_price):
     assert not Path(data._cache_path(['AAPL', 'MSFT'], '5y')).exists()
 
 
+def test_download_with_an_empty_ticker_is_not_cached(monkeypatch, cache):
+    downloaded = prices()
+    downloaded['MSFT'] = None
+    monkeypatch.setattr(
+        data.yf,
+        'download',
+        Mock(return_value=pd.concat({'Close': downloaded}, axis=1)),
+    )
+
+    with pytest.raises(ValueError, match='positive finite values'):
+        data.get_prices(['AAPL', 'MSFT'])
+
+    assert not Path(data._cache_path(['AAPL', 'MSFT'], '5y')).exists()
+
+
+def test_fresh_cache_with_an_empty_ticker_is_replaced(monkeypatch, cache):
+    path = Path(data._cache_path(['AAPL', 'MSFT'], '5y'))
+    incomplete = prices()
+    incomplete['MSFT'] = None
+    incomplete.to_parquet(path)
+    fresh = prices() * 2
+    download = Mock(return_value=pd.concat({'Close': fresh}, axis=1))
+    monkeypatch.setattr(data.yf, 'download', download)
+
+    result = data.get_prices(['AAPL', 'MSFT'])
+
+    pd.testing.assert_frame_equal(result, fresh.dropna(how='all'), check_freq=False)
+    pd.testing.assert_frame_equal(pd.read_parquet(path), result, check_freq=False)
+    download.assert_called_once()
+
+
 def test_stale_cache_downloads_replacement(monkeypatch, cache):
     path = Path(data._cache_path(['AAPL', 'MSFT'], '5y'))
     prices().to_parquet(path)
