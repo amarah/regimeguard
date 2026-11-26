@@ -31,15 +31,15 @@ except ValueError as error:
     st.stop()
 
 
-@st.cache_data(show_spinner="Detecting regime...")
+@st.cache_data(show_spinner="Detecting regime...", ttl=12 * 3600)
 def cached_regime():
     _, r = detect_regime()
     return r
 
 
-@st.cache_data(show_spinner="Sizing positions...")
-def cached_sizes(_tickers, _capital, _mult):
-    return size_positions(list(_tickers), _capital, _mult)
+@st.cache_data(show_spinner="Sizing positions...", ttl=12 * 3600)
+def cached_sizes(tickers, capital, mult):
+    return size_positions(list(tickers), capital, mult)
 
 
 regime = cached_regime()
