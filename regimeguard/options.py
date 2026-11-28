@@ -24,6 +24,7 @@ class PutCandidate:
     premium: float
     cost_pct: float
     protection_floor: str
+    tail_loss_covered_pct: float
     days_to_expiry: int
     efficiency: float
 
@@ -189,12 +190,14 @@ def optimize_hedge(tickers: list[str], position_values: dict[str, float],
             total_cost = contracts_needed * prem * 100
             cost_pct = total_cost / pos_val
             floor_loss_pct = 1 - (strike / spot)
-            efficiency = floor_loss_pct / max(cost_pct, 1e-6)
+            tail_loss_covered_pct = max(cvar_pct - floor_loss_pct, 0)
+            efficiency = tail_loss_covered_pct / max(cost_pct, 1e-6)
             results.append(PutCandidate(
                 ticker=t, expiry=row["expiry"], strike=round(strike, 2),
                 spot=round(spot, 2), premium=round(prem, 2),
                 cost_pct=round(cost_pct, 4),
                 protection_floor=f"{-floor_loss_pct:+.1%}",
+                tail_loss_covered_pct=round(tail_loss_covered_pct, 4),
                 days_to_expiry=int(row["dte"]),
                 efficiency=round(efficiency, 2)))
     df = pd.DataFrame([vars(c) for c in results])
@@ -202,7 +205,9 @@ def optimize_hedge(tickers: list[str], position_values: dict[str, float],
         return df
     df = df.sort_values("efficiency", ascending=False).head(top_n)
     needed_protection = cvar_pct * target_coverage
-    df["covers_cvar_target"] = df["protection_floor"].str.rstrip("%").astype(float) / 100 <= -needed_protection
+    df["covers_cvar_target"] = (
+        df["tail_loss_covered_pct"] + 1e-12 >= needed_protection
+    )
     return df.reset_index(drop=True)
 
 
@@ -214,7 +219,8 @@ def print_hedge_report(df: pd.DataFrame, cvar_pct: float):
         print("   No candidates found.")
         return
     cols = ["ticker", "expiry", "strike", "spot", "premium",
-            "cost_pct", "protection_floor", "days_to_expiry", "efficiency"]
+            "cost_pct", "protection_floor", "tail_loss_covered_pct",
+            "days_to_expiry", "efficiency"]
     print(df[cols].to_string(index=False))
     for _, r in df.iterrows():
         mark = "✓" if r["covers_cvar_target"] else "✗"

@@ -141,6 +141,22 @@ def test_hedge_cost_uses_executable_ask_quote(monkeypatch):
     assert result.loc[0, "cost_pct"] == 0.025
 
 
+def test_hedge_ranking_rewards_tail_loss_coverage(monkeypatch):
+    monkeypatch.setattr(options, "fetch_put_chain", lambda _: pd.DataFrame({
+        "strike": [90.0, 80.0], "ask": [1.0, 1.0], "spot": [100.0, 100.0],
+        "expiry": ["2026-12-18", "2026-12-18"], "dte": [35, 35],
+    }))
+
+    result = options.optimize_hedge(
+        ["TEST"], {"TEST": 10_000}, cvar_pct=0.2, top_n=2,
+        target_coverage=0.5,
+    )
+
+    assert result["strike"].tolist() == [90.0, 80.0]
+    assert result["tail_loss_covered_pct"].tolist() == [0.1, 0.0]
+    assert result["covers_cvar_target"].tolist() == [True, False]
+
+
 @pytest.mark.parametrize("cvar_pct", [-0.01, 1.01, float("nan"), None, True])
 def test_optimize_hedge_rejects_invalid_cvar(cvar_pct, monkeypatch):
     fetch = Mock(side_effect=AssertionError("quotes should not be fetched"))
