@@ -42,6 +42,23 @@ def test_numeric_provider_spot_is_normalized(monkeypatch):
     assert skew.analyze_skew("TEST")["skew"] == 0.10
 
 
+def test_invalid_fast_quote_uses_latest_close(monkeypatch):
+    expiry = (pd.Timestamp.now().normalize()
+              + pd.Timedelta(days=30)).strftime("%Y-%m-%d")
+    chain = SimpleNamespace(
+        puts=pd.DataFrame({"strike": [92.0], "impliedVolatility": [0.30]}),
+        calls=pd.DataFrame({"strike": [108.0], "impliedVolatility": [0.20]}),
+    )
+    ticker = SimpleNamespace(
+        fast_info={"last_price": "missing"},
+        history=lambda **_: pd.DataFrame({"Close": [99.0, 100.0]}),
+        options=[expiry], option_chain=lambda _: chain,
+    )
+    monkeypatch.setattr(skew.yf, "Ticker", lambda _: ticker)
+
+    assert skew.analyze_skew("TEST")["skew"] == 0.10
+
+
 def test_valid_skew_is_preserved(monkeypatch):
     fake_ticker(monkeypatch)
     result = skew.analyze_skew("TEST")

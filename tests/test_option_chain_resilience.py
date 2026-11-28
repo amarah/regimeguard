@@ -51,6 +51,23 @@ def test_invalid_spot_and_expiry_list_return_no_candidates(monkeypatch):
     assert options.fetch_put_chain("TEST").empty
 
 
+def test_invalid_fast_quote_falls_back_to_latest_close(monkeypatch):
+    expiry = (pd.Timestamp.now().normalize()
+              + pd.Timedelta(days=30)).strftime("%Y-%m-%d")
+    ticker = SimpleNamespace(
+        fast_info={"last_price": "missing"},
+        history=lambda **_: pd.DataFrame({"Close": [99.0, 100.0]}),
+        options=[expiry],
+        option_chain=lambda _: SimpleNamespace(
+            puts=pd.DataFrame({"strike": [90.0], "ask": [2.0]})),
+    )
+    monkeypatch.setattr(options.yf, "Ticker", lambda _: ticker)
+
+    result = options.fetch_put_chain("TEST")
+
+    assert result.loc[result.index[0], "spot"] == 100.0
+
+
 def test_malformed_quotes_are_excluded_from_put_candidates(monkeypatch):
     expiry = (pd.Timestamp.now().normalize()
               + pd.Timedelta(days=30)).strftime("%Y-%m-%d")

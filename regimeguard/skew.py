@@ -4,6 +4,8 @@ from math import isfinite
 import pandas as pd
 import yfinance as yf
 
+from .options import _latest_spot
+
 
 def analyze_skew(ticker: str) -> dict:
     """
@@ -11,15 +13,8 @@ def analyze_skew(ticker: str) -> dict:
     Very negative skew = expensive crash insurance; unusually flat = cheap.
     """
     tk = yf.Ticker(ticker)
-    try:
-        spot = tk.fast_info.get("last_price")
-    except Exception:
-        return {}
-    try:
-        spot = float(spot)
-    except (TypeError, ValueError, OverflowError):
-        return {}
-    if not isfinite(spot) or spot <= 0:
+    spot = _latest_spot(tk)
+    if spot is None:
         return {}
     today = pd.Timestamp.now().normalize()
     try:

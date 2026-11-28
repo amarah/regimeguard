@@ -28,6 +28,28 @@ class PutCandidate:
     efficiency: float
 
 
+def _latest_spot(ticker) -> float | None:
+    """Use the fast quote when valid, then fall back to the latest daily close."""
+    try:
+        spot = ticker.fast_info.get("last_price")
+    except Exception:
+        spot = None
+    try:
+        spot = float(spot)
+    except (TypeError, ValueError, OverflowError):
+        spot = None
+    if spot is not None and isfinite(spot) and spot > 0:
+        return spot
+    try:
+        closes = pd.to_numeric(
+            ticker.history(period="1d")["Close"], errors="coerce"
+        ).dropna()
+        spot = float(closes.iloc[-1])
+    except (AttributeError, IndexError, KeyError, TypeError, ValueError, OverflowError):
+        return None
+    return spot if isfinite(spot) and spot > 0 else None
+
+
 def _norm_cdf(x: float) -> float:
     from math import erf, sqrt
     return 0.5 * (1 + erf(x / sqrt(2)))
@@ -96,15 +118,8 @@ def fetch_put_chain(ticker: str, min_dte: int = 20, max_dte: int = 60) -> pd.Dat
         raise ValueError("min_dte cannot exceed max_dte.")
 
     tk = yf.Ticker(ticker)
-    try:
-        spot = tk.fast_info.get("last_price") or tk.history(period="1d")["Close"].iloc[-1]
-    except Exception:
-        return pd.DataFrame()
-    try:
-        spot = float(spot)
-    except (TypeError, ValueError, OverflowError):
-        return pd.DataFrame()
-    if not isfinite(spot) or spot <= 0:
+    spot = _latest_spot(tk)
+    if spot is None:
         return pd.DataFrame()
     try:
         expiries = tk.options
@@ -224,15 +239,8 @@ def optimize_collar(tickers: list[str], position_values: dict[str, float],
         if pos_val <= 0:
             continue
         tk = yf.Ticker(t)
-        try:
-            spot = tk.fast_info.get("last_price")
-        except Exception:
-            continue
-        try:
-            spot = float(spot)
-        except (TypeError, ValueError, OverflowError):
-            continue
-        if not isfinite(spot) or spot <= 0:
+        spot = _latest_spot(tk)
+        if spot is None:
             continue
         try:
             expiries = tk.options
@@ -330,15 +338,8 @@ def build_put_spreads(tickers: list[str], position_values: dict[str, float],
         if pos_val <= 0:
             continue
         tk = yf.Ticker(t)
-        try:
-            spot = tk.fast_info.get("last_price")
-        except Exception:
-            continue
-        try:
-            spot = float(spot)
-        except (TypeError, ValueError, OverflowError):
-            continue
-        if not isfinite(spot) or spot <= 0:
+        spot = _latest_spot(tk)
+        if spot is None:
             continue
         try:
             expiries = tk.options
